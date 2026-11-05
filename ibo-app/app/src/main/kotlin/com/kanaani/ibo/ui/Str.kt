@@ -76,6 +76,7 @@ object Str {
     val resume get() = t("Resume", "استكمال", "המשך")
     val fromStart get() = t("From the beginning", "من البداية", "מההתחלה")
     val latestMovies get() = t("Latest additions", "آخر الإضافات", "נוספו לאחרונה")
+    val latestMoviesUpdates get() = t("Latest movie updates", "آخر تحديثات الأفلام", "עדכוני סרטים אחרונים")
     val latestSeries get() = t("Latest series updates", "آخر تحديثات المسلسلات", "סדרות שעודכנו לאחרונה")
     val categories get() = t("Categories", "الفئات", "קטגוריות")
     val search get() = t("Search…", "بحث…", "חיפוש…")
