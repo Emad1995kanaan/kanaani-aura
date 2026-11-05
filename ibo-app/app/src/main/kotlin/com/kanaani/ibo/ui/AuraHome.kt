@@ -1,6 +1,7 @@
 package com.kanaani.ibo.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,7 +83,9 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
         Row(Modifier.fillMaxSize()) {
             // ── Menu ──
             Column(
-                Modifier.width(menuWidth).fillMaxHeight().background(Color(0xE6070B16)).padding(horizontal = 14.dp, vertical = 22.dp)
+                Modifier.width(menuWidth).fillMaxHeight().background(Color(0xE6070B16))
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 22.dp)
                     .onFocusChanged { if (it.hasFocus) menuOpen = true },
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
@@ -95,7 +98,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
                 MenuItem(Str.downloads, Icons.Download, menuOpen) { nav.go(Screen.Downloads) }
                 MenuItem(Str.account, Icons.Account, menuOpen) { nav.go(Screen.Account) }
                 MenuItem(Str.settings, Icons.Settings, menuOpen) { nav.go(Screen.Settings) }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(24.dp))
                 if (menuOpen) {
                     Text(clock(now), color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 24.sp, maxLines = 1)
                     Label(date(now, "EEEE d MMMM"), 11.sp, C.text2)
@@ -105,12 +108,9 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
             }
             Column(Modifier.weight(1f).fillMaxHeight().onFocusChanged { if (it.hasFocus) menuOpen = false }) {
                 // ── Titre sélectionné ──
-                Column(Modifier.fillMaxWidth().height(230.dp).padding(start = 30.dp, end = 40.dp, top = 26.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val h = hero
-                    if (h == null) {
-                        Text(Str.welcome, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 34.sp, maxLines = 1)
-                        Label(com.kanaani.ibo.Brand.name, 16.sp, C.text2)
-                    } else {
+                val h = hero
+                if (h != null) Column(Modifier.fillMaxWidth().height(210.dp).padding(start = 30.dp, end = 40.dp, top = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    run {
                         Text(com.kanaani.ibo.data.Promo.clean(h.watch?.name ?: h.name), color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 34.sp, maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         val r = h.rating?.toDoubleOrNull()?.takeIf { it > 0 }
@@ -121,7 +121,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
                     }
                 }
                 // ── Rangées d'affiches ──
-                LazyColumn(Modifier.fillMaxWidth().weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 26.dp, end = 10.dp, bottom = 22.dp),
+                LazyColumn(Modifier.fillMaxWidth().weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 26.dp, end = 10.dp, top = if (h == null) 22.dp else 0.dp, bottom = 22.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (continuing.isNotEmpty()) item { PosterRow(Str.continueWatching, continuing, { hero = it }) { p -> p.watch?.let { resumeWatch(nav, x, scope, it) } } }
                     item { PosterRow(Str.latestMoviesUpdates, movies, { hero = it }) { p -> p.movie?.let { nav.go(Screen.MovieDetail(it)) } } }
