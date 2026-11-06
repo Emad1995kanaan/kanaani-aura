@@ -66,31 +66,32 @@ import kotlinx.coroutines.delay
 
 /** Palette « IBO » : bleu nuit, tuiles en dégradé. */
 object C {
-    // Kanaani Aura : nuit bleutée, bleu du logo et argent.
-    val bgTop = Color(0xFF070A12)
-    val bgBottom = Color(0xFF0D1630)
-    val glow = Color(0x442F6BFF)
-    val panel = Color(0xFF0D1324)
-    val card = Color(0xFF151D33)
-    val cardHi = Color(0xFF1F2B4D)
-    val line = Color(0xFF2A3961)
-    val text = Color(0xFFF5F7FF)
-    val text2 = Color(0xFFC3CCE0)
-    val text3 = Color(0xFF7D89A8)
+    // Kanaani Aura : noir de luxe, argent, une seule touche de bleu (celui du logo).
+    val bgTop = Color(0xFF000000)
+    val bgBottom = Color(0xFF0A0A0C)
+    val glow = Color(0x14C0C8D8)
+    val panel = Color(0xFF0E0E10)
+    val card = Color(0xFF17171A)
+    val cardHi = Color(0xFF232328)
+    val line = Color(0xFF2A2A30)
+    val text = Color(0xFFFFFFFF)
+    val text2 = Color(0xFFB4B4BC)
+    val text3 = Color(0xFF6E6E78)
     val accent = Color(0xFF2F6BFF)
-    val accentDark = Color(0xFF0D3AAE)
-    val focus = Color.White
-    val error = Color(0xFFFF8A8A)
-    val live = listOf(Color(0xFF2F6BFF), Color(0xFF0D3AAE))
-    val movies = listOf(Color(0xFFB9C3D6), Color(0xFF5B6680))
-    val series = listOf(Color(0xFF1E9BFF), Color(0xFF0B4F9E))
-    val small = listOf(Color(0xFF182240), Color(0xFF0E1528))
+    val accentDark = Color(0xFF1846C8)
+    val focus = Color(0xFFE8ECF5)
+    val error = Color(0xFFFF7A7A)
+    val live = listOf(Color(0xFF2F6BFF), Color(0xFF1846C8))
+    val movies = listOf(Color(0xFF2A2A30), Color(0xFF17171A))
+    val series = listOf(Color(0xFF2A2A30), Color(0xFF17171A))
+    val small = listOf(Color(0xFF17171A), Color(0xFF111113))
     val danger = listOf(Color(0xFF7A1C2B), Color(0xFF4A0F1A))
 }
 
 private fun variable(id: Int, w: Int) = Font(id, weight = FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
 
-val Sora = FontFamily(variable(R.font.sora, 400), variable(R.font.sora, 600), variable(R.font.sora, 700))
+// Aura : police système (pas celle de Kanaani).
+val Sora: FontFamily = FontFamily.SansSerif
 val Manrope = FontFamily(variable(R.font.manrope, 400), variable(R.font.manrope, 500), variable(R.font.manrope, 600), variable(R.font.manrope, 700))
 
 /** Fond commun : dégradé bleu nuit + halo. */
@@ -99,8 +100,7 @@ fun Backdrop(content: @Composable BoxScope.() -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(C.bgTop, C.bgBottom)))
-            .background(Brush.radialGradient(listOf(C.glow, Color.Transparent))),
+            .background(Brush.verticalGradient(listOf(C.bgTop, C.bgBottom))),
         content = content,
     )
 }
@@ -127,7 +127,7 @@ fun Tile(
             .scale(if (focused) focusScale else 1f)
             .clip(shape)
             .background(if (bg.size > 1) Brush.linearGradient(bg) else SolidColor(bg.first()))
-            .then(if (focused) Modifier.border(3.dp, C.focus, shape) else Modifier)
+            .then(if (focused) Modifier.border(2.dp, C.focus, shape) else Modifier)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
     ) { content(focused) }
 }

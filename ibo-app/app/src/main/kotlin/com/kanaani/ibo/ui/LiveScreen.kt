@@ -127,7 +127,7 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
         .onGloballyPositioned { LiveVideo.previewBounds = it.boundsInRoot() }) {
         Row(Modifier.fillMaxSize().padding(start = 18.dp, top = 12.dp, bottom = 12.dp)) {
             // 1) Catégories (01, 02…)
-            Column(Modifier.width(300.dp).fillMaxHeight().background(Color(0xD9060912)).padding(vertical = 6.dp)) {
+            Column(Modifier.width(300.dp).fillMaxHeight().background(Color(0xE6000000)).padding(vertical = 6.dp)) {
                 val cats = categories
                 if (cats == null) Loading() else LazyColumn(state = s.catState) {
                     item(key = "catsearch") {
@@ -151,9 +151,9 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
                     }
                 }
             }
-            Box(Modifier.width(2.dp).fillMaxHeight().background(Color(0x332F6BFF)))
+            Box(Modifier.width(2.dp).fillMaxHeight().background(Color(0x22FFFFFF)))
             // 2) Chaînes (001, 002…)
-            Column(Modifier.width(380.dp).fillMaxHeight().background(Color(0xC7060912)).padding(vertical = 6.dp)) {
+            Column(Modifier.width(380.dp).fillMaxHeight().background(Color(0xD9000000)).padding(vertical = 6.dp)) {
                 if (s.searching) SearchBox(true, { s.searching = it }, s.filter, { s.filter = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp))
                 val list = shown
                 when {
@@ -169,7 +169,7 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
             }
             Spacer(Modifier.weight(1f))
             // 3) Barre d'outils (comme la télécommande : recherche, favori, plein écran)
-            Column(Modifier.padding(end = 10.dp).align(Alignment.CenterVertically).clip(RoundedCornerShape(12.dp)).background(Color(0xB3060912)).padding(6.dp),
+            Column(Modifier.padding(end = 10.dp).align(Alignment.CenterVertically).clip(RoundedCornerShape(12.dp)).background(Color(0xB3000000)).padding(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 ToolButton(Icons.Search) { s.searching = !s.searching; if (!s.searching) s.filter = "" }
                 val p = s.playing

@@ -128,7 +128,7 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
             Header(if (s.series) Str.series else Str.movies)
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.width(300.dp).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(Color(0xD9060912)).padding(vertical = 8.dp)) {
+                Column(Modifier.width(300.dp).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(Color(0xE6000000)).padding(vertical = 8.dp)) {
                     val cats = categories
                     when {
                         cats == null -> Loading()

@@ -1,5 +1,6 @@
 package com.kanaani.ibo.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -83,25 +84,15 @@ fun LoginScreen() {
     // Clavier ouvert (téléphone) : le logo disparaît et le formulaire monte en haut de l'écran, au-dessus du clavier.
     val keyboard = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current) > 0
     Backdrop {
-        Row(
-            Modifier.fillMaxSize().imePadding()
-                .padding(horizontal = if (keyboard) 16.dp else 48.dp, vertical = if (keyboard) 6.dp else 32.dp),
-            verticalAlignment = if (keyboard) Alignment.Top else Alignment.CenterVertically,
-            horizontalArrangement = if (keyboard) Arrangement.Center else Arrangement.Start,
+        Column(
+            Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(vertical = if (keyboard) 6.dp else 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = if (keyboard) Arrangement.Top else Arrangement.Center,
         ) {
-            if (!keyboard) {
-                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Logo(190.dp)
-                    Spacer(Modifier.height(18.dp))
-                    Text(Brand.name, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 32.sp, maxLines = 1)
-                    Spacer(Modifier.height(6.dp))
-                    Label(Str.tagline, 14.sp, C.text2)
-                }
-                Spacer(Modifier.width(36.dp))
-            }
+            if (!keyboard) { Logo(150.dp); Spacer(Modifier.height(18.dp)) }
             Column(
-                Modifier.width(if (keyboard) 560.dp else 380.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xCC0E1736))
-                    .verticalScroll(rememberScrollState()).padding(if (keyboard) 14.dp else 28.dp),
+                Modifier.width(if (keyboard) 560.dp else 400.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF111113))
+                    .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(14.dp)).padding(if (keyboard) 14.dp else 24.dp),
                 verticalArrangement = Arrangement.spacedBy(if (keyboard) 8.dp else 12.dp),
             ) {
                 Text(Str.signIn, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = if (keyboard) 18.sp else 26.sp, maxLines = 1)
