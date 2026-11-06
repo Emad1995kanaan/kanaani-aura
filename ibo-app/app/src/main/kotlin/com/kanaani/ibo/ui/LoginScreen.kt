@@ -89,7 +89,7 @@ fun LoginScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = if (keyboard) Arrangement.Top else Arrangement.Center,
         ) {
-            if (!keyboard) { Logo(150.dp); Spacer(Modifier.height(18.dp)) }
+            if (!keyboard) { Logo(230.dp); Spacer(Modifier.height(14.dp)) }
             Column(
                 Modifier.width(if (keyboard) 560.dp else 400.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF111113))
                     .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(14.dp)).padding(if (keyboard) 14.dp else 24.dp),
