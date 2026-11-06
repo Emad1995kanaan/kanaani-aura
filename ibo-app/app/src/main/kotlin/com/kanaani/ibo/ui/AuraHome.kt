@@ -50,12 +50,10 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
     InitialFocus(first)
     val scope = rememberCoroutineScope()
     var reload by remember { mutableStateOf(0) }
-    val movies by produceState<List<Poster>?>(null, x, x.catalogVersion, reload) {
-        value = runCatching { x.latestMovies(24).map { Poster(it.id, it.name, it.poster, it.rating, movie = it) } }.getOrDefault(emptyList())
-    }
-    val shows by produceState<List<Poster>?>(null, x, x.catalogVersion, reload) {
-        value = runCatching { x.latestShows(24).map { Poster(it.id, it.name, it.poster, it.rating, show = it) } }.getOrDefault(emptyList())
-    }
+    val feedMovies = com.kanaani.ibo.data.HomeFeed.movies
+    val feedShows = com.kanaani.ibo.data.HomeFeed.shows
+    val movies = remember(feedMovies) { feedMovies?.map { Poster(it.id, it.name, it.poster, it.rating, movie = it) } }
+    val shows = remember(feedShows) { feedShows?.map { Poster(it.id, it.name, it.poster, it.rating, show = it) } }
     val continuing = remember(Store.watching) {
         Store.watching.take(20).map { w ->
             val sub = if (w.kind == "series" && w.episode > 0) "${w.name} · S${w.season} E${w.episode}" else w.name
@@ -100,7 +98,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
                 item { PosterRow(Str.latestSeries, shows, {}) { p -> p.show?.let { nav.go(Screen.ShowDetail(it)) } } }
             }
         }
-        if (askRefresh) ChoiceDialog(Str.refreshAsk, listOf<Pair<String, () -> Unit>>(Str.yes to { askRefresh = false; x.clearCache(); AccountCache.value = null; reload++; toast = Str.refreshed }, Str.cancel to { askRefresh = false })) { askRefresh = false }
+        if (askRefresh) ChoiceDialog(Str.refreshAsk, listOf<Pair<String, () -> Unit>>(Str.yes to { askRefresh = false; x.clearCache(); AccountCache.value = null; com.kanaani.ibo.data.HomeFeed.gen++; toast = Str.refreshed }, Str.cancel to { askRefresh = false })) { askRefresh = false }
         toast?.let { Box(Modifier.align(Alignment.BottomCenter).padding(24.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xE6222226)).padding(horizontal = 18.dp, vertical = 10.dp)) { Label(it, 14.sp) } }
     }
 }

@@ -182,7 +182,7 @@ private fun SettingsPanel(nav: Navigator, x: Xtream, startTab: Int) {
                     PanelButton(Str.orderMovies) { nav.go(Screen.Reorder("movie")) }
                     PanelButton(Str.orderSeries) { nav.go(Screen.Reorder("series")) }
                     PanelButton(Str.layout) { dialog = "layout" }
-                    PanelButton(Str.refresh) { x.clearCache(); AccountCache.value = null; toast = Str.refreshed }
+                    PanelButton(Str.refresh) { x.clearCache(); AccountCache.value = null; com.kanaani.ibo.data.HomeFeed.gen++; toast = Str.refreshed }
                     PanelButton(Str.checkUpdates) { scope.launch { com.kanaani.ibo.data.Updater.check(manual = true) } }
                     PanelButton("${Str.about} · ${Str.version} ${BuildConfig.VERSION_NAME}") {
                         // Outil caché : 5 appuis rapides = outils d'administration (export des listes, envoi de l'ordre).

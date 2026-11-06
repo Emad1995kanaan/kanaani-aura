@@ -49,7 +49,8 @@ private fun Screens(onExit: () -> Unit) {
     Playback.lowerQuality = { u, tried ->
         com.kanaani.ibo.data.QualityLadder.lower(com.kanaani.ibo.data.QualityLadder.idOf(u), tried)?.let { it to session.liveUrl(it.id) }
     }
-    LaunchedEffect(session) { com.kanaani.ibo.data.QualityLadder.load(session) }
+    // Accueil tout de suite (copie gardée / petite catégorie), puis films, séries et chaînes en arrière-plan, un par un.
+    LaunchedEffect(session, session.catalogVersion, com.kanaani.ibo.data.HomeFeed.gen) { com.kanaani.ibo.data.HomeFeed.run(session) }
     val top = nav.top
     BackHandler { if (!nav.back()) onExit() }
     // Quitter le Direct ou un lecteur VOD vers un autre écran : la lecture s'arrête (sauf Direct ↔ plein écran).

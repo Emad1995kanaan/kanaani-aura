@@ -162,6 +162,10 @@ object Store {
         if (Layouts.mode == "custom") categoryOrders = categoryOrders.mapValues { emptyList() }
     }
 
+    /** Petites données mises de côté (ex. rangées de l'accueil, affichées tout de suite au prochain lancement). */
+    fun raw(key: String): String? = sp.getString(key, null)
+    fun putRaw(key: String, value: String?) { sp.edit().apply { if (value == null) remove(key) else putString(key, value) }.apply() }
+
     fun lastHost(): String? = sp.getString("host", null)
     fun rememberHost(h: String) { sp.edit().putString("host", h).apply() }
 
@@ -274,10 +278,11 @@ object Store {
     }
 
     fun logout() {
-        sp.edit().remove("user").remove("pass").remove("favorites").remove("watching").remove("live_history").remove("trial_u").remove("trial_p").remove("trial_host").apply()
+        sp.edit().remove("user").remove("pass").remove("favorites").remove("watching").remove("live_history").remove("home_movies").remove("home_shows").remove("trial_u").remove("trial_p").remove("trial_host").apply()
         Trial.block = null
         watching = emptyList()
         liveHistory = emptyList()
+        HomeFeed.clear()
         // L'ordre des catégories est une préférence de l'appareil : il reste après une déconnexion.
         favorites = emptyList()
         session = null
