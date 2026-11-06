@@ -27,6 +27,8 @@ sealed class Screen {
         var catSearching by mutableStateOf(false)
         /** Premier affichage fait (focus initial sur la catégorie, pas sur les chaînes). */
         var opened = false
+        /** Aura : listes affichées par-dessus la vidéo (un appui sur la vidéo les cache / les montre). */
+        var listsOpen by mutableStateOf(true)
         var focusIndex by mutableIntStateOf(0)
         val catState = LazyListState()
         val listState = LazyListState()

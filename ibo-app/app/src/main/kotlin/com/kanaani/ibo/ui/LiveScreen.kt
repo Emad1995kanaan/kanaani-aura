@@ -1,5 +1,10 @@
 package com.kanaani.ibo.ui
 
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.material3.Text
 import android.view.ViewGroup
 import androidx.compose.foundation.background
@@ -114,7 +119,7 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
     fun select(c: Channel, list: List<Channel>, index: Int) {
         s.focusIndex = index
         if (s.playing?.id == c.id && Playback.current != null && !Playback.error) {
-            nav.go(Screen.Play(c.name, x.liveUrl(c.id), live = true, channels = list, index = index))
+            s.listsOpen = false
         } else {
             s.playing = c
             Playback.play(ctx, x.liveUrl(c.id))
@@ -123,8 +128,22 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
 
     // Aura : la chaîne joue en plein écran DERRIÈRE ; catégories et chaînes numérotées par-dessus, semi-transparentes.
     val playingNow = s.playing != null && Playback.current != null
+    val showFocus = remember { FocusRequester() }
+    // Retour : cache d'abord les listes (si une chaîne joue), puis quitte l'écran.
+    androidx.activity.compose.BackHandler(enabled = s.listsOpen && playingNow) { s.listsOpen = false }
+    LaunchedEffect(s.listsOpen) { if (s.listsOpen) runCatching { chFocus.requestFocus() } else runCatching { showFocus.requestFocus() } }
+    if (!playingNow) s.listsOpen = true
     Box(Modifier.fillMaxSize().then(if (playingNow) Modifier else Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.bgTop, C.bgBottom))))
         .onGloballyPositioned { LiveVideo.previewBounds = it.boundsInRoot() }) {
+        // Listes cachées : tout l'écran est un bouton (appui / OK) qui les rouvre.
+        if (!s.listsOpen) {
+            Box(Modifier.fillMaxSize().focusRequester(showFocus).focusable()
+                .onKeyEvent { e -> if (e.type == androidx.compose.ui.input.key.KeyEventType.KeyUp && (e.key == androidx.compose.ui.input.key.Key.DirectionCenter || e.key == androidx.compose.ui.input.key.Key.Enter || e.key == androidx.compose.ui.input.key.Key.DirectionUp || e.key == androidx.compose.ui.input.key.Key.DirectionDown || e.key == androidx.compose.ui.input.key.Key.DirectionLeft || e.key == androidx.compose.ui.input.key.Key.DirectionRight)) { s.listsOpen = true; true } else false }
+                .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { s.listsOpen = true })
+            return@Box
+        }
+        // Appui sur la vidéo (hors listes) : cache les listes.
+        if (playingNow) Box(Modifier.fillMaxSize().clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { s.listsOpen = false })
         Row(Modifier.fillMaxSize().padding(start = 18.dp, top = 12.dp, bottom = 12.dp)) {
             // 1) Catégories (01, 02…)
             Column(Modifier.width(300.dp).fillMaxHeight().background(Color(0xE6000000)).padding(vertical = 6.dp)) {
