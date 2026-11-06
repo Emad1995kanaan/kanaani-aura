@@ -51,6 +51,7 @@ jobs:
       # خط Cairo (نفس خط الصور) — بينزل وقت البناء من Google Fonts (رخصة OFL).
       - name: Fetch Cairo font
         run: |
+          mkdir -p app/src/main/res/font
           curl -fsSL -o app/src/main/res/font/cairo.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/cairo/Cairo%5Bslnt%2Cwght%5D.ttf"
           test "$(head -c4 app/src/main/res/font/cairo.ttf | xxd -p)" = "00010000"
 
