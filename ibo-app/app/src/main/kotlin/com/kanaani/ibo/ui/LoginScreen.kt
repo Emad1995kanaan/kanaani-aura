@@ -89,7 +89,12 @@ fun LoginScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = if (keyboard) Arrangement.Top else Arrangement.Center,
         ) {
-            if (!keyboard) { Logo(230.dp); Spacer(Modifier.height(14.dp)) }
+            // Écran large (TV, box, tablette couchée) : logo et formulaire côte à côte → le logo n'est jamais coupé.
+            val cfg = androidx.compose.ui.platform.LocalConfiguration.current
+            val wide = cfg.screenWidthDp > cfg.screenHeightDp
+            if (!keyboard && !wide) { LoginLogo(false); Spacer(Modifier.height(12.dp)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (!keyboard && wide) { LoginLogo(true); Spacer(Modifier.width(56.dp)) }
             Column(
                 Modifier.width(if (keyboard) 560.dp else 400.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF111113))
                     .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(14.dp)).padding(if (keyboard) 14.dp else 24.dp),
@@ -127,9 +132,14 @@ fun LoginScreen() {
                 }
                 Label("v${BuildConfig.VERSION_NAME}", 11.sp, C.text3)
             }
+            }
         }
     }
 }
+
+/** Logo de la page de connexion : grand à côté du formulaire (TV), plus petit au-dessus (téléphone). */
+@Composable
+private fun LoginLogo(wide: Boolean) { Logo(if (wide) 300.dp else 170.dp) }
 
 /** Texte d'un refus d'essai (fin, plein, autre appareil…) avec le numéro WhatsApp. */
 fun trialMessage(r: com.kanaani.ibo.data.Trial.Result): String {
