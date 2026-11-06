@@ -156,6 +156,15 @@ private fun SettingsPanel(nav: Navigator, x: Xtream, startTab: Int) {
                         }
                     }
                 }
+                // Vérifier les mises à jour : sous l'onglet Réglages (action directe, pas un onglet).
+                Tile({ scope.launch { com.kanaani.ibo.data.Updater.check(manual = true) } }, Modifier.fillMaxWidth().height(62.dp),
+                    RoundedCornerShape(14.dp), colors = listOf(Color.Transparent), focusColors = C.live, focusScale = 1f) {
+                    Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Refresh, 26.dp, Color.White, stroke = 2f)
+                        Spacer(Modifier.width(26.dp))
+                        Label(Str.checkUpdates, 18.sp, weight = FontWeight.Medium)
+                    }
+                }
             }
             Spacer(Modifier.width(24.dp))
             Column(
@@ -178,12 +187,10 @@ private fun SettingsPanel(nav: Navigator, x: Xtream, startTab: Int) {
                     }
                     val (on, off) = Str.onOff.split('|').let { it[0] to it.getOrElse(1) { "" } }
                     PanelButton(Str.autoQuality + " : " + (if (Store.autoQuality) on else off)) { Store.chooseAutoQuality(!Store.autoQuality) }
-                    PanelButton(Str.orderLive) { nav.go(Screen.Reorder("live")) }
-                    PanelButton(Str.orderMovies) { nav.go(Screen.Reorder("movie")) }
-                    PanelButton(Str.orderSeries) { nav.go(Screen.Reorder("series")) }
+                    PanelButton(Str.channelsTitle) { nav.go(Screen.Reorder("live")) }
+                    PanelButton(Str.movies) { nav.go(Screen.Reorder("movie")) }
+                    PanelButton(Str.series) { nav.go(Screen.Reorder("series")) }
                     PanelButton(Str.layout) { dialog = "layout" }
-                    PanelButton(Str.refresh) { x.clearCache(); AccountCache.value = null; com.kanaani.ibo.data.HomeFeed.gen++; toast = Str.refreshed }
-                    PanelButton(Str.checkUpdates) { scope.launch { com.kanaani.ibo.data.Updater.check(manual = true) } }
                     PanelButton("${Str.about} · ${Str.version} ${BuildConfig.VERSION_NAME}") {
                         // Outil caché : 5 appuis rapides = outils d'administration (export des listes, envoi de l'ordre).
                         val t = System.currentTimeMillis()

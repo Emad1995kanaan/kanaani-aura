@@ -149,6 +149,7 @@ object Str {
 
     // Réglages
     val language get() = t("Language", "اللغة", "שפה")
+    val channelsTitle get() = t("Channels", "القنوات", "ערוצים")
     val orderLive get() = t("Order channels", "ترتيب القنوات", "סידור ערוצים")
     val orderMovies get() = t("Order movies", "ترتيب الأفلام", "סידור סרטים")
     val orderSeries get() = t("Order series", "ترتيب المسلسلات", "סידור סדרות")
