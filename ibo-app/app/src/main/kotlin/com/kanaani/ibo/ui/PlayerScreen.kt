@@ -1,5 +1,6 @@
 package com.kanaani.ibo.ui
 
+import androidx.compose.foundation.layout.absolutePadding
 import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -242,17 +243,17 @@ fun PlayerScreen(nav: Navigator, x: Xtream, s: Screen.Play, hosted: Boolean = fa
                 Label("⛶  $f", 22.sp, weight = FontWeight.Bold)
             }
         }
-        // Films / séries : titre en haut à droite, avec les contrôles, et tout le temps de la pause.
+        // Films / séries : titre (bas gauche), avec les contrôles, et tout le temps de la pause.
         if (!s.live) {
             var paused by remember { mutableStateOf(false) }
             LaunchedEffect(Unit) { while (true) { paused = Playback.player(ctx).let { !it.playWhenReady }; kotlinx.coroutines.delay(400) } }
             if (controlsVisible || paused) Box(
-                Modifier.align(androidx.compose.ui.AbsoluteAlignment.TopRight).padding(top = 18.dp, end = 22.dp).fillMaxWidth(0.55f),
-                contentAlignment = androidx.compose.ui.AbsoluteAlignment.TopRight,
+                // Aura : titre en bas à gauche, juste au-dessus de la barre de lecture.
+                Modifier.align(androidx.compose.ui.AbsoluteAlignment.BottomLeft).absolutePadding(left = 28.dp, bottom = 96.dp).fillMaxWidth(0.7f),
+                contentAlignment = androidx.compose.ui.AbsoluteAlignment.BottomLeft,
             ) {
-                Box(Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xAA000000)).padding(horizontal = 16.dp, vertical = 9.dp)) {
-                    Label(title, 20.sp, weight = FontWeight.Bold, lines = 2)
-                }
+                androidx.compose.material3.Text(title, color = Color.White, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 24.sp, maxLines = 2,
+                    style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black, blurRadius = 8f)))
             }
         }
         // Bouton format (tactile) : visible avec les contrôles (VOD) ou le bandeau (direct). En haut à gauche (le titre est à droite).

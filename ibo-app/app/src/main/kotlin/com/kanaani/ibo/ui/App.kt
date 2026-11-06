@@ -48,6 +48,8 @@ private fun Screens(onExit: () -> Unit) {
         keyboard?.hide() // le clavier ne reste jamais ouvert d'un écran à l'autre
         if (top !is Screen.Live && top !is Screen.Play) Playback.stop()
     }
+    // Aura : la vidéo du direct est SOUS les écrans (l'écran Direct est transparent et pose ses listes dessus).
+    LiveVideoHost(nav, session, top)
     when (top) {
         Screen.Home -> HomeScreen(nav, session)
         is Screen.Live -> LiveScreen(nav, session, top)
@@ -55,15 +57,14 @@ private fun Screens(onExit: () -> Unit) {
         is Screen.MovieDetail -> MovieDetailScreen(nav, session, top)
         is Screen.ShowDetail -> ShowDetailScreen(nav, session, top)
         // Direct plein écran : dessiné par LiveVideoHost (même surface vidéo que l'aperçu).
-        is Screen.Play -> if (top.live) androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black))
-            else PlayerScreen(nav, session, top)
+        // Direct plein écran : rien par-dessus, la vidéo (LiveVideoHost, dessinée dessous) occupe tout.
+        is Screen.Play -> if (!top.live) PlayerScreen(nav, session, top)
         Screen.Favorites -> FavoritesScreen(nav, session)
         is Screen.Reorder -> ReorderScreen(session, top)
         Screen.Account -> AccountScreen(session)
         Screen.Downloads -> DownloadsScreen(nav)
         Screen.Settings -> SettingsScreen(nav, session)
     }
-    LiveVideoHost(nav, session, top)
     MessageTicker(top)
 }
 

@@ -1,5 +1,6 @@
 package com.kanaani.ibo.ui
 
+import androidx.compose.material3.Text
 import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -120,93 +121,86 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
         }
     }
 
-    Backdrop {
-        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 14.dp)) {
-            Header(Str.live)
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // 1) Catégories
-                Column(Modifier.width(200.dp).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(C.panel).padding(8.dp)) {
-                    val cats = categories
-                    if (cats == null) Loading() else LazyColumn(state = s.catState, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        // Recherche dans les catégories, en tête de liste.
-                        item(key = "catsearch") {
-                            SearchBox(s.catSearching, { s.catSearching = it }, s.catFilter, { s.catFilter = it }, Modifier.fillMaxWidth(), label = Str.searchCats)
-                        }
-                        val fixed = listOf(Category(Screen.FAVORITES, "★ " + Str.favorites), Category(Screen.ALL, Str.all))
-                        val cq = s.catFilter.trim()
-                        val all = (fixed + cats).let { l -> if (cq.isEmpty()) l else l.filter { it.name.contains(cq, ignoreCase = true) } }
-                        val focusAt = all.indexOfFirst { it.id == s.category }.takeIf { it >= 0 } ?: 0
-                        itemsIndexed(all, key = { i, c -> c.id + "#" + i }) { i, c ->
-                            val selected = s.category == c.id
-                            val m = if (i == focusAt) Modifier.focusRequester(catFocus) else Modifier
-                            Tile({ if (s.category != c.id) { s.category = c.id; s.focusIndex = 0; s.filter = ""; s.searching = false } },
-                                m.fillMaxWidth().height(38.dp), RoundedCornerShape(10.dp),
-                                colors = listOf(if (selected) C.cardHi else Color.Transparent), focusColors = C.live, focusScale = 1.02f) {
-                                Box(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
-                                    Label(c.name, 13.sp, if (selected) C.text else C.text2, if (selected) FontWeight.Bold else FontWeight.Medium)
-                                }
-                            }
-                        }
+    // Aura : la chaîne joue en plein écran DERRIÈRE ; catégories et chaînes numérotées par-dessus, semi-transparentes.
+    val playingNow = s.playing != null && Playback.current != null
+    Box(Modifier.fillMaxSize().then(if (playingNow) Modifier else Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.bgTop, C.bgBottom))))
+        .onGloballyPositioned { LiveVideo.previewBounds = it.boundsInRoot() }) {
+        Row(Modifier.fillMaxSize().padding(start = 18.dp, top = 12.dp, bottom = 12.dp)) {
+            // 1) Catégories (01, 02…)
+            Column(Modifier.width(300.dp).fillMaxHeight().background(Color(0xD9060912)).padding(vertical = 6.dp)) {
+                val cats = categories
+                if (cats == null) Loading() else LazyColumn(state = s.catState) {
+                    item(key = "catsearch") {
+                        SearchBox(s.catSearching, { s.catSearching = it }, s.catFilter, { s.catFilter = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), label = Str.searchCats)
                     }
-                }
-                // 2) Chaînes
-                Column(Modifier.width(290.dp).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(C.panel).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SearchBox(s.searching, { s.searching = it }, s.filter, { s.filter = it }, Modifier.fillMaxWidth())
-                    val list = shown
-                    when {
-                        list == null -> Loading()
-                        list.isEmpty() -> Message(Str.empty)
-                        else -> LazyColumn(state = s.listState, verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
-                            itemsIndexed(list, key = { i, c -> c.id + "#" + i }) { i, c ->
-                                val m = if (i == s.focusIndex.coerceIn(0, list.lastIndex)) Modifier.focusRequester(chFocus) else Modifier
-                                ChannelRow(c, i, s.playing?.id == c.id, m.onFocusChanged { if (it.isFocused) s.focusIndex = i }) { select(c, list, i) }
-                            }
-                        }
-                    }
-                }
-                // 3) Aperçu
-                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Cadre de l'aperçu : la vidéo est posée dessus par LiveVideoHost (même surface qu'en plein écran).
-                    Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color.Black)
-                        .onGloballyPositioned { LiveVideo.previewBounds = it.boundsInRoot() }, contentAlignment = Alignment.Center) {
-                        if (s.playing == null || Playback.current == null) Label(Str.chooseChannel, 14.sp, C.text2)
-                    }
-                    val p = s.playing
-                    if (p != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(p.logo, null, Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(C.card), contentScale = ContentScale.Fit)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Label(p.name, 18.sp, weight = FontWeight.Bold)
-                                Label(Str.previewHint, 12.sp, C.text2)
-                            }
-                        }
-                        val fav = Store.isFavorite("live", p.id)
-                        Tile({ Store.toggleFavorite(Favorite("live", p.id, p.name, p.logo)) }, Modifier.fillMaxWidth().height(40.dp),
-                            RoundedCornerShape(10.dp), colors = listOf(C.card), focusColors = C.live, focusScale = 1.02f) {
+                    val fixed = listOf(Category(Screen.FAVORITES, Str.favorites), Category(Screen.ALL, Str.all))
+                    val cq = s.catFilter.trim()
+                    val all = (fixed + cats).let { l -> if (cq.isEmpty()) l else l.filter { it.name.contains(cq, ignoreCase = true) } }
+                    val focusAt = all.indexOfFirst { it.id == s.category }.takeIf { it >= 0 } ?: 0
+                    itemsIndexed(all, key = { i, c -> c.id + "#" + i }) { i, c ->
+                        val selected = s.category == c.id
+                        val m = if (i == focusAt) Modifier.focusRequester(catFocus) else Modifier
+                        Tile({ if (s.category != c.id) { s.category = c.id; s.focusIndex = 0; s.filter = ""; s.searching = false } },
+                            m.fillMaxWidth().height(48.dp), RoundedCornerShape(0.dp),
+                            colors = listOf(if (selected) Color(0x552F6BFF) else Color.Transparent), focusColors = C.live, focusScale = 1f) {
                             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Star, 18.dp, if (fav) Color(0xFFFFC94D) else Color.White, fill = fav)
-                                Spacer(Modifier.width(10.dp))
-                                Label(if (fav) Str.removeFav else Str.addFav, 14.sp, weight = FontWeight.SemiBold)
+                                Text(String.format(java.util.Locale.ROOT, "%02d", i + 1), color = C.text2, fontFamily = Sora, fontSize = 17.sp, modifier = Modifier.width(38.dp))
+                                Label(if (c.id == Screen.FAVORITES) "★ " + c.name else c.name, 16.sp, C.text, if (selected) FontWeight.Bold else FontWeight.Medium)
                             }
                         }
                     }
                 }
             }
+            Box(Modifier.width(2.dp).fillMaxHeight().background(Color(0x332F6BFF)))
+            // 2) Chaînes (001, 002…)
+            Column(Modifier.width(380.dp).fillMaxHeight().background(Color(0xC7060912)).padding(vertical = 6.dp)) {
+                if (s.searching) SearchBox(true, { s.searching = it }, s.filter, { s.filter = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp))
+                val list = shown
+                when {
+                    list == null -> Loading()
+                    list.isEmpty() -> Message(Str.empty)
+                    else -> LazyColumn(state = s.listState, contentPadding = PaddingValues(bottom = 8.dp)) {
+                        itemsIndexed(list, key = { i, c -> c.id + "#" + i }) { i, c ->
+                            val m = if (i == s.focusIndex.coerceIn(0, list.lastIndex)) Modifier.focusRequester(chFocus) else Modifier
+                            ChannelRow(c, i, s.playing?.id == c.id, m.onFocusChanged { if (it.isFocused) s.focusIndex = i }) { select(c, list, i) }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            // 3) Barre d'outils (comme la télécommande : recherche, favori, plein écran)
+            Column(Modifier.padding(end = 10.dp).align(Alignment.CenterVertically).clip(RoundedCornerShape(12.dp)).background(Color(0xB3060912)).padding(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ToolButton(Icons.Search) { s.searching = !s.searching; if (!s.searching) s.filter = "" }
+                val p = s.playing
+                if (p != null) {
+                    val fav = Store.isFavorite("live", p.id)
+                    ToolButton(Icons.Star, if (fav) Color(0xFFFFC94D) else Color.White, fill = fav) { Store.toggleFavorite(Favorite("live", p.id, p.name, p.logo)) }
+                    ToolButton(Icons.Live) { shown?.let { l -> val i = l.indexOfFirst { it.id == p.id }.coerceAtLeast(0); nav.go(Screen.Play(p.name, x.liveUrl(p.id), live = true, channels = l, index = i)) } }
+                }
+            }
         }
+        if (!playingNow && s.playing == null) Box(Modifier.align(Alignment.CenterEnd).padding(end = 120.dp)) { Label(Str.chooseChannel, 16.sp, C.text2) }
+        if (Playback.error && s.playing != null) Box(Modifier.align(Alignment.CenterEnd).padding(end = 120.dp)) { Label(Str.playError, 14.sp, C.error, lines = 2) }
+    }
+}
+
+@Composable
+private fun ToolButton(icon: String, tint: Color = Color.White, fill: Boolean = false, onClick: () -> Unit) {
+    Tile(onClick, Modifier.size(52.dp), RoundedCornerShape(10.dp), colors = listOf(Color.Transparent), focusColors = C.live, focusScale = 1.06f) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, 26.dp, tint, fill = fill) }
     }
 }
 
 @Composable
 private fun ChannelRow(c: Channel, index: Int, playing: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Tile(onClick, modifier.fillMaxWidth().height(46.dp), RoundedCornerShape(10.dp),
-        colors = listOf(if (playing) C.cardHi else C.card), focusColors = C.live, focusScale = 1.02f) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Label("${if (c.number > 0) c.number else index + 1}", 12.sp, C.text3, modifier = Modifier.width(34.dp))
-            AsyncImage(c.logo, null, Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Fit)
-            Spacer(Modifier.width(10.dp))
-            Label(c.name, 14.sp, if (playing) Color(0xFF8FB3FF) else C.text, if (playing) FontWeight.Bold else FontWeight.Medium, modifier = Modifier.weight(1f))
+    Tile(onClick, modifier.fillMaxWidth().height(54.dp), RoundedCornerShape(0.dp),
+        colors = listOf(if (playing) Color(0x552F6BFF) else Color.Transparent), focusColors = C.live, focusScale = 1f) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(String.format(java.util.Locale.ROOT, "%03d", if (c.number > 0) c.number else index + 1), color = C.text2, fontFamily = Sora, fontSize = 16.sp, modifier = Modifier.width(46.dp))
+            AsyncImage(c.logo, null, Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentScale = ContentScale.Fit)
+            Spacer(Modifier.width(12.dp))
+            Label(c.name, 16.sp, if (playing) Color(0xFF8FB3FF) else C.text, if (playing) FontWeight.Bold else FontWeight.Medium, modifier = Modifier.weight(1f))
         }
     }
 }

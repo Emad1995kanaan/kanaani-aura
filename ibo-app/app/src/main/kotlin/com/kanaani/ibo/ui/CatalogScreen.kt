@@ -128,15 +128,15 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
             Header(if (s.series) Str.series else Str.movies)
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.width(210.dp).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(C.panel).padding(8.dp)) {
+                Column(Modifier.width(300.dp).fillMaxHeight().clip(RoundedCornerShape(14.dp)).background(Color(0xD9060912)).padding(vertical = 8.dp)) {
                     val cats = categories
                     when {
                         cats == null -> Loading()
                         cats.isEmpty() -> Message(Str.empty)
-                        else -> LazyColumn(state = s.catState, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        else -> LazyColumn(state = s.catState) {
                             // Recherche dans les catégories, au-dessus de « Tous ».
                             item(key = "catsearch") {
-                                SearchBox(s.catSearching, { s.catSearching = it }, s.catFilter, { s.catFilter = it }, Modifier.fillMaxWidth(), label = Str.searchCats)
+                                SearchBox(s.catSearching, { s.catSearching = it }, s.catFilter, { s.catFilter = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), label = Str.searchCats)
                             }
                             // « Tous » en tête de liste.
                             val fixed = listOf(Category(Screen.ALL, Str.all), Category(Screen.CONTINUE, Str.continueWatching),
@@ -147,10 +147,11 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
                                 val selected = s.category == c.id
                                 val m = if (selected || (i == 0 && s.category == null)) Modifier.focusRequester(catFocus) else Modifier
                                 Tile({ if (s.category != c.id) { s.category = c.id; s.focusIndex = -1; s.filter = ""; s.searching = false } },
-                                    m.fillMaxWidth().height(38.dp), RoundedCornerShape(10.dp),
-                                    colors = listOf(if (selected) C.cardHi else Color.Transparent), focusColors = C.live, focusScale = 1.02f) {
-                                    Box(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
-                                        Label(c.name, 13.sp, if (selected) C.text else C.text2, if (selected) FontWeight.Bold else FontWeight.Medium)
+                                    m.fillMaxWidth().height(48.dp), RoundedCornerShape(0.dp),
+                                    colors = listOf(if (selected) Color(0x552F6BFF) else Color.Transparent), focusColors = C.live, focusScale = 1f) {
+                                    Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        androidx.compose.material3.Text(String.format(java.util.Locale.ROOT, "%02d", i + 1), color = C.text2, fontFamily = Sora, fontSize = 15.sp, modifier = Modifier.width(34.dp))
+                                        Label(c.name, 15.sp, C.text, if (selected) FontWeight.Bold else FontWeight.Medium)
                                     }
                                 }
                             }
@@ -164,7 +165,7 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
                         list == null -> Loading()
                         list.isEmpty() -> Message(if (items == null) Str.loading else Str.empty)
                         else -> LazyVerticalGrid(
-                            columns = GridCells.Adaptive(118.dp),
+                            columns = GridCells.Adaptive(150.dp),
                             state = s.gridState,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -189,24 +190,26 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
 
 @Composable
 fun PosterCard(p: Poster, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Tile(onClick, Modifier.fillMaxWidth().aspectRatio(2f / 3f), RoundedCornerShape(10.dp), colors = listOf(C.card), focusScale = 1.06f) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Label(p.name, 12.sp, C.text3, lines = 3, modifier = Modifier.padding(8.dp))
-            }
-            // Pas d'affiche (ou image cassée) : affiche TMDB.
-            com.kanaani.ibo.data.PosterImage(p.image, if (p.show != null || p.watch?.kind == "series") "tv" else "movie", p.watch?.name ?: p.name, Modifier.fillMaxSize())
-            val r = p.rating?.toDoubleOrNull()?.takeIf { it > 0 }
-            if (r != null) Box(Modifier.align(Alignment.TopStart).padding(6.dp).clip(RoundedCornerShape(6.dp))
-                .background(Brush.linearGradient(C.live)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                Label("★ " + String.format(java.util.Locale.ROOT, "%.1f", r), 10.sp, weight = FontWeight.Bold)
-            }
-            // Barre de progression (« Continuer à regarder »).
-            val w = p.watch
-            if (w != null && w.progress > 0f) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(5.dp).background(Color(0xAA000000))) {
-                Box(Modifier.fillMaxWidth(w.progress).fillMaxHeight().background(Brush.horizontalGradient(C.live)))
-            }
+    // Aura : affiche seule, étoiles en haut, titre écrit en bas sur l'affiche.
+    Tile(onClick, modifier.fillMaxWidth().aspectRatio(2f / 3f), RoundedCornerShape(10.dp), colors = listOf(C.card), focusScale = 1.06f) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Label(p.name, 12.sp, C.text3, lines = 3, modifier = Modifier.padding(8.dp))
         }
-        Label(p.name, 12.sp, C.text, FontWeight.SemiBold, lines = 2)
+        com.kanaani.ibo.data.PosterImage(p.image, if (p.show != null || p.watch?.kind == "series") "tv" else "movie", p.watch?.name ?: p.name, Modifier.fillMaxSize())
+        // Étoiles (note sur 10 → 5 étoiles)
+        val r = p.rating?.toDoubleOrNull()?.takeIf { it > 0 }
+        if (r != null) Box(Modifier.align(Alignment.TopStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0xAA000000), Color.Transparent))).padding(horizontal = 6.dp, vertical = 5.dp)) {
+            val full = (r / 2).coerceIn(0.0, 5.0)
+            androidx.compose.material3.Text(buildString { repeat(5) { k -> append(if (full >= k + 0.5) "★" else "☆") } },
+                color = Color(0xFFFFC72C), fontSize = 14.sp, maxLines = 1)
+        }
+        // Titre en bas, sur l'affiche
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)))).padding(start = 8.dp, end = 8.dp, top = 22.dp, bottom = 8.dp)) {
+            Label(p.name, 14.sp, Color.White, FontWeight.Bold, lines = 2)
+        }
+        val w = p.watch
+        if (w != null && w.progress > 0f) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(5.dp).background(Color(0xAA000000))) {
+            Box(Modifier.fillMaxWidth(w.progress).fillMaxHeight().background(Brush.horizontalGradient(C.live)))
+        }
     }
 }

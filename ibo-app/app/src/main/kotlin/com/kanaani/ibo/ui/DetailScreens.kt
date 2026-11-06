@@ -72,6 +72,15 @@ private fun ActionButton(label: String, icon: String, primary: Boolean, modifier
     }
 }
 
+/** Note sur 10 en 5 étoiles dorées. */
+@Composable
+fun Stars(rating: String?) {
+    val r = rating?.toDoubleOrNull()?.takeIf { it > 0 } ?: return
+    val full = (r / 2).coerceIn(0.0, 5.0)
+    Text(buildString { repeat(5) { k -> append(if (full >= k + 0.5) "★" else "☆") } } + "  " + String.format(java.util.Locale.ROOT, "%.1f", r),
+        color = Color(0xFFFFC72C), fontFamily = Sora, fontSize = 20.sp, maxLines = 1)
+}
+
 /** Durée lisible : 1:05:12 ou 12:34. */
 fun clockOf(ms: Long): String {
     val t = ms / 1000; val h = t / 3600; val m = (t % 3600) / 60; val sec = t % 60
@@ -90,11 +99,12 @@ fun MovieDetailScreen(nav: Navigator, x: Xtream, s: Screen.MovieDetail) {
     val fav = Store.isFavorite("movie", m.id)
     DetailBackdrop(info?.backdrop ?: art?.backdrop ?: m.poster) {
         Row(Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 28.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            Box(Modifier.width(220.dp).height(330.dp).clip(RoundedCornerShape(14.dp)).background(C.card)) {
+            Box(Modifier.width(280.dp).height(420.dp).clip(RoundedCornerShape(16.dp)).background(C.card)) {
                 com.kanaani.ibo.data.PosterImage(m.poster, "movie", m.name, Modifier.fillMaxSize())
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(m.name, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 30.sp, maxLines = 2)
+                Text(m.name, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 38.sp, maxLines = 2)
+                Stars((info?.rating ?: m.rating))
                 Meta(listOf(info?.year, info?.duration, info?.genre, (info?.rating ?: m.rating)?.let { "★ $it" }))
                 (info?.plot?.takeIf { it.isNotBlank() } ?: art?.overview)?.let { Label(it, 14.sp, C.text, FontWeight.Normal, lines = 6) }
                 info?.director?.let { Label("${Str.director}: $it", 12.sp, C.text2) }
@@ -150,10 +160,11 @@ fun ShowDetailScreen(nav: Navigator, x: Xtream, s: Screen.ShowDetail) {
     DetailBackdrop(info?.backdrop ?: art?.backdrop ?: show.poster) {
         Row(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             Column(Modifier.width(300.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.width(150.dp).height(225.dp).clip(RoundedCornerShape(12.dp)).background(C.card)) {
+                Box(Modifier.width(200.dp).height(300.dp).clip(RoundedCornerShape(14.dp)).background(C.card)) {
                     com.kanaani.ibo.data.PosterImage(show.poster, "tv", show.name, Modifier.fillMaxSize())
                 }
-                Text(show.name, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 2)
+                Text(show.name, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 28.sp, maxLines = 2)
+                Stars(info?.rating ?: show.rating)
                 Meta(listOf(info?.year, info?.genre, (info?.rating ?: show.rating)?.let { "★ $it" }))
                 (info?.plot?.takeIf { it.isNotBlank() } ?: art?.overview)?.let { Label(it, 12.sp, C.text2, FontWeight.Normal, lines = 5) }
                 if (saved != null && saved.episodeId.isNotEmpty()) {
