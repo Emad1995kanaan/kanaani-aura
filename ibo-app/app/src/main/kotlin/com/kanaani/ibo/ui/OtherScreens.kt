@@ -177,7 +177,7 @@ private fun SettingsPanel(nav: Navigator, x: Xtream, startTab: Int) {
                         }
                     }
                     val (on, off) = Str.onOff.split('|').let { it[0] to it.getOrElse(1) { "" } }
-                    PanelButton(Str.autoQuality + " : " + (if (Store.autoQuality) on else off)) { Store.setAutoQuality(!Store.autoQuality) }
+                    PanelButton(Str.autoQuality + " : " + (if (Store.autoQuality) on else off)) { Store.chooseAutoQuality(!Store.autoQuality) }
                     PanelButton(Str.orderLive) { nav.go(Screen.Reorder("live")) }
                     PanelButton(Str.orderMovies) { nav.go(Screen.Reorder("movie")) }
                     PanelButton(Str.orderSeries) { nav.go(Screen.Reorder("series")) }

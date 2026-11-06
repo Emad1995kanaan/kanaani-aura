@@ -150,7 +150,7 @@ object Store {
     /** Aura : passer tout seul à une qualité plus basse de la même chaîne quand elle bloque. */
     var autoQuality by mutableStateOf(true)
         private set
-    fun setAutoQuality(on: Boolean) { autoQuality = on; sp.edit().putBoolean("auto_quality", on).apply() }
+    fun chooseAutoQuality(on: Boolean) { autoQuality = on; sp.edit().putBoolean("auto_quality", on).apply() }
 
     /** Aura : « Réinitialiser le contenu » (favoris, historique, reprise, ordre des catégories, verrous). */
     fun resetContent() {

@@ -243,12 +243,7 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
             )) { optionsFor = null }
         }
         moving?.let { c ->
-            val ids = (categories ?: emptyList()).map { it.id }
-            val shift: (Int) -> Unit = { d ->
-                val l = ids.toMutableList(); val i = l.indexOf(c.id); val j = i + d
-                if (i >= 0 && j in l.indices) { l.removeAt(i); l.add(j, c.id); Store.setCategoryOrder("live", l) }
-            }
-            ChoiceDialog(Str.moveCat + " · " + c.name, listOf<Pair<String, () -> Unit>>(Str.moveUp to { shift(-1) }, Str.moveDown to { shift(1) }, "OK" to { moving = null })) { moving = null }
+            MoveCategoryDialog(c, categories ?: emptyList(), onOk = { ids -> Store.setCategoryOrder("live", ids); moving = null }) { moving = null }
         }
         pinFor?.let { id ->
             PinDialog({
@@ -314,5 +309,61 @@ suspend fun InitialFocusOnce(r: FocusRequester) {
     repeat(10) {
         kotlinx.coroutines.delay(50)
         if (runCatching { r.requestFocus() }.getOrDefault(false)) return
+    }
+}
+
+/**
+ * Aura : « Nouvelle position » d'une catégorie, comme sur les captures : la catégorie déplacée (surlignée) et sa
+ * voisine, puis Monter / Descendre / Annuler / OK. Rien n'est enregistré avant OK ; Annuler la remet à sa place.
+ */
+@Composable
+private fun MoveCategoryDialog(cat: Category, all: List<Category>, onOk: (List<String>) -> Unit, onDismiss: () -> Unit) {
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
+    var order by remember { mutableStateOf(all) }
+    val pos = order.indexOfFirst { it.id == cat.id }.coerceAtLeast(0)
+    val up = remember { FocusRequester() }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(80); runCatching { up.requestFocus() } }
+    fun shift(d: Int) {
+        val j = pos + d
+        if (j !in order.indices) return
+        order = order.toMutableList().also { val x = it.removeAt(pos); it.add(j, x) }
+    }
+    val navy = Color(0xFF1B2232)
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {},
+        contentAlignment = Alignment.Center) {
+        Column(Modifier.width(820.dp).clip(RoundedCornerShape(26.dp)).background(navy).padding(horizontal = 28.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.fillMaxWidth().padding(bottom = 6.dp), contentAlignment = Alignment.Center) {
+                Label(Str.moveCat, 24.sp, weight = FontWeight.Bold)
+            }
+            // La catégorie déplacée puis sa voisine du dessous (ou du dessus si elle est dernière).
+            val other = if (pos < order.lastIndex) pos + 1 else pos - 1
+            listOf(pos, other).filter { it in order.indices }.sorted().forEach { i ->
+                val me = i == pos
+                Box(Modifier.fillMaxWidth().height(56.dp).background(if (me) Color(0xFF4A505E) else Color.Transparent).padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart) {
+                    Label(order[i].name, 19.sp, if (me) C.text else C.text2, if (me) FontWeight.SemiBold else FontWeight.Medium)
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                MoveBtn(Str.moveCatUp, "↑", Modifier.weight(1f).focusRequester(up)) { shift(-1) }
+                MoveBtn(Str.moveCatDown, "⬇", Modifier.weight(1f)) { shift(1) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                MoveBtn(Str.cancel, null, Modifier.weight(1f), onDismiss)
+                MoveBtn(Str.ok, null, Modifier.weight(1f)) { onOk(order.map { it.id }) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoveBtn(label: String, icon: String?, m: Modifier, onClick: () -> Unit) {
+    Tile(onClick, m.height(56.dp), RoundedCornerShape(18.dp), colors = listOf(Color(0xFF2B3346)), focusColors = C.live, focusScale = 1.02f) {
+        Box(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+            Label(label, 18.sp, weight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+            if (icon != null) Label(icon, 22.sp, weight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterStart))
+        }
     }
 }
