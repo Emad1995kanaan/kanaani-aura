@@ -32,7 +32,15 @@ object HomeFeed {
     private fun pick(cats: List<Category>): Category? =
         cats.firstOrNull { fresh.containsMatchIn(it.name) } ?: cats.firstOrNull { year.containsMatchIn(it.name) } ?: cats.firstOrNull()
 
+    /** Jamais d'arrêt de l'application à cause de l'accueil : toute erreur est ignorée. */
     suspend fun run(x: Xtream) {
+        try { load(x) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Throwable) {
+            if (movies == null) movies = emptyList()
+            if (shows == null) shows = emptyList()
+        }
+    }
+
+    private suspend fun load(x: Xtream) {
         if (movies.isNullOrEmpty()) decodeMovies(Store.raw("home_movies")).takeIf { it.isNotEmpty() }?.let { movies = it }
         if (shows.isNullOrEmpty()) decodeShows(Store.raw("home_shows")).takeIf { it.isNotEmpty() }?.let { shows = it }
         // Première fois : petite catégorie de nouveautés, en attendant les listes complètes.
@@ -47,7 +55,6 @@ object HomeFeed {
         if (m.isNotEmpty()) { movies = m; Store.putRaw("home_movies", encodeMovies(m)) } else if (movies == null) movies = emptyList()
         val s = runCatching { x.latestShows(24) }.getOrDefault(emptyList())
         if (s.isNotEmpty()) { shows = s; Store.putRaw("home_shows", encodeShows(s)) } else if (shows == null) shows = emptyList()
-        QualityLadder.load(x)
     }
 
     fun clear() { movies = null; shows = null }

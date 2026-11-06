@@ -96,6 +96,8 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
         channels?.let { list -> if (q.isEmpty()) list else list.filter { it.name.contains(q, ignoreCase = true) } }
     }
 
+    // Qualités des chaînes (bascule automatique) : préparées une fois, en arrière-plan, à l'ouverture du Direct.
+    LaunchedEffect(x) { com.kanaani.ibo.data.QualityLadder.ensure(x) }
     val chFocus = remember { FocusRequester() }
     val catFocus = remember { FocusRequester() }
     // Nouvelle catégorie chargée : le focus passe sur la liste des chaînes (pas pendant la saisie du filtre).
