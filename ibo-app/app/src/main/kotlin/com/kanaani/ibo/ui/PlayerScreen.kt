@@ -58,15 +58,19 @@ import kotlinx.coroutines.delay
 fun PlayerScreen(nav: Navigator, x: Xtream, s: Screen.Play, hosted: Boolean = false) {
     val ctx = LocalContext.current
     var index by remember { mutableIntStateOf(s.index) }
+    // Zapping rapide : le bandeau suit chaque appui, la chaîne ne se lance qu'après une demi-seconde sans appui.
+    var playIndex by remember { mutableIntStateOf(s.index) }
+    LaunchedEffect(index) { if (index != playIndex) { kotlinx.coroutines.delay(500); playIndex = index } }
+    val playingChannel = if (s.live) s.channels.getOrNull(playIndex) else null
     val channel = if (s.live) s.channels.getOrNull(index) else null
-    val url = channel?.let { x.liveUrl(it.id) } ?: s.url
-    val title = (if (s.live) Playback.switched?.name else null) ?: channel?.name ?: s.title
+    val url = playingChannel?.let { x.liveUrl(it.id) } ?: s.url
+    val title = (if (s.live && index == playIndex) Playback.switched?.name else null) ?: channel?.name ?: s.title
     var showInfo by remember { mutableStateOf(true) }
     var infoTick by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(url) {
         Playback.play(ctx, url, s.startMs)
-        if (s.live && channel != null && index != s.index) Store.addLiveHistory(channel)
+        if (s.live && playingChannel != null && playIndex != s.index) Store.addLiveHistory(playingChannel)
     }
     // ── « Continuer à regarder » : position mémorisée toutes les 5 s et en quittant. ──
     var finished by remember { mutableStateOf(false) }

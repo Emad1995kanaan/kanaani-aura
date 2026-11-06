@@ -155,6 +155,24 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
         c.categoryId?.let { Store.rememberLive(it, c.id) }
     }
 
+    // Zapping ↑/↓ listes cachées : bandeau 3 s ; la chaîne se lance après 0,5 s sans appui (on peut en sauter plusieurs).
+    var zapBanner by remember { mutableStateOf<Channel?>(null) }
+    var zapTarget by remember { mutableStateOf<Pair<Int, Channel>?>(null) }
+    var zapTick by remember { mutableIntStateOf(0) }
+    fun zap(d: Int) {
+        val list = shown?.takeIf { it.isNotEmpty() } ?: return
+        val from = zapTarget?.first ?: list.indexOfFirst { it.id == s.playing?.id }.takeIf { it >= 0 } ?: s.focusIndex.coerceIn(0, list.lastIndex)
+        val i = (from + d).mod(list.size)
+        zapTarget = i to list[i]; zapBanner = list[i]; zapTick++
+    }
+    LaunchedEffect(zapTick) {
+        if (zapTick == 0) return@LaunchedEffect
+        kotlinx.coroutines.delay(500)
+        zapTarget?.let { (i, c) -> zapTarget = null; shown?.let { select(c, it, i) } }
+        kotlinx.coroutines.delay(2_500)
+        zapBanner = null
+    }
+
     // Aura : la chaîne joue en plein écran DERRIÈRE ; catégories et chaînes numérotées par-dessus, semi-transparentes.
     val playingNow = s.playing != null && Playback.current != null
     var optionsFor by remember { mutableStateOf<Category?>(null) }
@@ -167,11 +185,32 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
     if (!playingNow) s.listsOpen = true
     Box(Modifier.fillMaxSize().then(if (playingNow) Modifier else Modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.bgTop, C.bgBottom))))
         .onGloballyPositioned { LiveVideo.previewBounds = it.boundsInRoot() }) {
-        // Listes cachées : tout l'écran est un bouton (appui / OK) qui les rouvre.
+        // Listes cachées : ↑ chaîne suivante, ↓ chaîne précédente (dans la catégorie ouverte) ;
+        // OK / ← / → (ou un appui sur l'écran) rouvrent les listes.
         if (!s.listsOpen) {
             Box(Modifier.fillMaxSize().focusRequester(showFocus).focusable()
-                .onKeyEvent { e -> if (e.type == androidx.compose.ui.input.key.KeyEventType.KeyUp && (e.key == androidx.compose.ui.input.key.Key.DirectionCenter || e.key == androidx.compose.ui.input.key.Key.Enter || e.key == androidx.compose.ui.input.key.Key.DirectionUp || e.key == androidx.compose.ui.input.key.Key.DirectionDown || e.key == androidx.compose.ui.input.key.Key.DirectionLeft || e.key == androidx.compose.ui.input.key.Key.DirectionRight)) { s.listsOpen = true; true } else false }
+                .onKeyEvent { e ->
+                    val K = androidx.compose.ui.input.key.Key
+                    val down = e.type == androidx.compose.ui.input.key.KeyEventType.KeyDown
+                    val up = e.type == androidx.compose.ui.input.key.KeyEventType.KeyUp
+                    when (e.key) {
+                        K.DirectionUp, K.ChannelUp -> { if (down) zap(+1); true }
+                        K.DirectionDown, K.ChannelDown -> { if (down) zap(-1); true }
+                        K.DirectionCenter, K.Enter, K.NumPadEnter, K.DirectionLeft, K.DirectionRight -> { if (up) s.listsOpen = true; true }
+                        else -> false
+                    }
+                }
                 .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { s.listsOpen = true })
+            zapBanner?.let { c ->
+                Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 36.dp).width(620.dp).clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xE6000000)).padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val n = (shown?.indexOfFirst { it.id == c.id } ?: -1)
+                    Text(String.format(java.util.Locale.ROOT, "%03d", if (c.number > 0) c.number else n + 1), color = C.text2, fontFamily = Sora, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(64.dp))
+                    AsyncImage(c.logo, null, Modifier.size(46.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x22FFFFFF)), contentScale = ContentScale.Fit)
+                    Spacer(Modifier.width(14.dp))
+                    Label(c.name, 20.sp, weight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                }
+            }
             return@Box
         }
         // Appui sur la vidéo (hors listes) : cache les listes.
