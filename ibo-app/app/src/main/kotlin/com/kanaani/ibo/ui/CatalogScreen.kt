@@ -186,22 +186,30 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
                     when {
                         list == null -> Loading()
                         list.isEmpty() -> Message(if (items == null) Str.loading else Str.empty)
-                        else -> LazyVerticalGrid(
-                            columns = GridCells.Adaptive(150.dp),
+                        // 4 colonnes × 2 rangées = 8 affiches entières à l'écran (TV / box / paysage) ;
+                        // téléphone en portrait : 3 colonnes, affiches au format 2:3.
+                        else -> androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                          val cfg = androidx.compose.ui.platform.LocalConfiguration.current
+                          val portrait = cfg.screenHeightDp > cfg.screenWidthDp
+                          val gap = 14.dp
+                          val cardH = if (portrait) null else ((maxHeight - 20.dp - gap) / 2).coerceAtLeast(140.dp)
+                          LazyVerticalGrid(
+                            columns = GridCells.Fixed(if (portrait) 3 else 4),
                             state = s.gridState,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(gap),
+                            verticalArrangement = Arrangement.spacedBy(gap),
                             contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp, start = 4.dp, end = 4.dp),
                         ) {
                             itemsIndexed(list, key = { i, p -> p.id + "#" + i }) { i, p ->
                                 val target = if (s.focusIndex >= 0) s.focusIndex.coerceIn(0, list.lastIndex) else 0
                                 val m = if (i == target) Modifier.focusRequester(gridFocus) else Modifier
-                                PosterCard(p, m.onFocusChanged { if (it.isFocused) s.focusIndex = i }) {
+                                PosterCard(p, m.onFocusChanged { if (it.isFocused) s.focusIndex = i }, height = cardH) {
                                     s.focusIndex = i
                                     if (p.watch != null) resumeWatch(nav, x, scope, p.watch)
                                     else if (p.movie != null) nav.go(Screen.MovieDetail(p.movie)) else if (p.show != null) nav.go(Screen.ShowDetail(p.show))
                                 }
                             }
+                          }
                         }
                     }
                 }
@@ -212,9 +220,11 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
 }
 
 @Composable
-fun PosterCard(p: Poster, modifier: Modifier, onClick: () -> Unit) {
+fun PosterCard(p: Poster, modifier: Modifier, height: androidx.compose.ui.unit.Dp? = null, onClick: () -> Unit) {
     // Aura : affiche seule, étoiles en haut, titre écrit en bas sur l'affiche.
-    Tile(onClick, modifier.fillMaxWidth().aspectRatio(2f / 3f), RoundedCornerShape(10.dp), colors = listOf(C.card), focusScale = 1.06f) {
+    // [height] : hauteur imposée (grille 4 × 2) ; sinon format 2:3.
+    Tile(onClick, modifier.fillMaxWidth().then(if (height != null) Modifier.height(height) else Modifier.aspectRatio(2f / 3f)),
+        RoundedCornerShape(14.dp), colors = listOf(C.card), focusScale = 1.05f) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Label(p.name, 12.sp, C.text3, lines = 3, modifier = Modifier.padding(8.dp))
         }
