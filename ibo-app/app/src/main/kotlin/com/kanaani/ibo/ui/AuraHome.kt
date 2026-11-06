@@ -100,7 +100,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
                 item { PosterRow(Str.latestSeries, shows, {}) { p -> p.show?.let { nav.go(Screen.ShowDetail(it)) } } }
             }
         }
-        if (askRefresh) ChoiceDialog(Str.refreshAsk, listOf(Str.yes to { askRefresh = false; x.clearCache(); AccountCache.value = null; reload++; toast = Str.refreshed }, Str.cancel to { askRefresh = false })) { askRefresh = false }
+        if (askRefresh) ChoiceDialog(Str.refreshAsk, listOf<Pair<String, () -> Unit>>(Str.yes to { askRefresh = false; x.clearCache(); AccountCache.value = null; reload++; toast = Str.refreshed }, Str.cancel to { askRefresh = false })) { askRefresh = false }
         toast?.let { Box(Modifier.align(Alignment.BottomCenter).padding(24.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xE6222226)).padding(horizontal = 18.dp, vertical = 10.dp)) { Label(it, 14.sp) } }
     }
 }

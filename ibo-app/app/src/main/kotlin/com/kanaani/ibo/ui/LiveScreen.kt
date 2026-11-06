@@ -217,7 +217,7 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
             }
         }
         optionsFor?.let { c ->
-            ChoiceDialog(Str.catOptions + " · " + c.name, listOf(
+            ChoiceDialog(Str.catOptions + " · " + c.name, listOf<Pair<String, () -> Unit>>(
                 (if (Store.isLocked("live", c.id)) Str.unlock else Str.lock) to { optionsFor = null; if (Store.isLocked("live", c.id)) pinFor = "unlock:" + c.id else Store.toggleLock("live", c.id) },
                 Str.moveCat to { optionsFor = null; moving = c },
                 Str.cancel to { optionsFor = null },
@@ -225,11 +225,11 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
         }
         moving?.let { c ->
             val ids = (categories ?: emptyList()).map { it.id }
-            fun move(d: Int) {
+            val shift: (Int) -> Unit = { d ->
                 val l = ids.toMutableList(); val i = l.indexOf(c.id); val j = i + d
                 if (i >= 0 && j in l.indices) { l.removeAt(i); l.add(j, c.id); Store.setCategoryOrder("live", l) }
             }
-            ChoiceDialog(Str.moveCat + " · " + c.name, listOf(Str.moveUp to { move(-1) }, Str.moveDown to { move(1) }, "OK" to { moving = null })) { moving = null }
+            ChoiceDialog(Str.moveCat + " · " + c.name, listOf<Pair<String, () -> Unit>>(Str.moveUp to { shift(-1) }, Str.moveDown to { shift(1) }, "OK" to { moving = null })) { moving = null }
         }
         pinFor?.let { id ->
             PinDialog({
