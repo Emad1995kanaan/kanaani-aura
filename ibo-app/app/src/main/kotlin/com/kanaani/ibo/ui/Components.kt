@@ -91,9 +91,10 @@ object C {
 
 private fun variable(id: Int, w: Int) = Font(id, weight = FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
 
-// Aura : police système (pas celle de Kanaani).
-val Sora: FontFamily = FontFamily.SansSerif
-val Manrope = FontFamily(variable(R.font.manrope, 400), variable(R.font.manrope, 500), variable(R.font.manrope, 600), variable(R.font.manrope, 700))
+// Aura : police Cairo (arabe + latin), comme sur les captures.
+val Cairo = FontFamily(variable(R.font.cairo, 400), variable(R.font.cairo, 500), variable(R.font.cairo, 600), variable(R.font.cairo, 700), variable(R.font.cairo, 800))
+val Sora: FontFamily = Cairo
+val Manrope: FontFamily = Cairo
 
 /** Fond commun : dégradé bleu nuit + halo. */
 @Composable

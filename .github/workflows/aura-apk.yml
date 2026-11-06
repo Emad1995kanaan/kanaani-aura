@@ -48,6 +48,12 @@ jobs:
             echo "::warning::BRAND_KEYSTORE_B64 secret is missing — APK signed with a temporary debug key."
           fi
 
+      # خط Cairo (نفس خط الصور) — بينزل وقت البناء من Google Fonts (رخصة OFL).
+      - name: Fetch Cairo font
+        run: |
+          curl -fsSL -o app/src/main/res/font/cairo.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/cairo/Cairo%5Bslnt%2Cwght%5D.ttf"
+          test "$(head -c4 app/src/main/res/font/cairo.ttf | xxd -p)" = "00010000"
+
       - name: Build
         env:
           BRAND_KEYSTORE_PASSWORD: ${{ secrets.BRAND_KEYSTORE_PASSWORD }}
