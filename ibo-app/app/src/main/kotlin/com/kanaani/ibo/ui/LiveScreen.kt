@@ -72,6 +72,8 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
         value = null
         value = when (val c = s.category) {
             null -> emptyList()
+            Screen.HISTORY -> Store.liveHistory.filterNot { it.ext.isNotEmpty() && Store.isLocked("live", it.ext) }
+                .mapIndexed { i, f -> Channel(f.id, f.name, f.image, i + 1, f.ext.ifEmpty { null }) }
             Screen.FAVORITES -> favs.filter { it.kind == "live" }.mapIndexed { i, f -> Channel(f.id, f.name, f.image, i + 1, null) }
             Screen.ALL -> x.channels(null)
             else -> {
@@ -101,9 +103,12 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
     LaunchedEffect(categories) {
         val cats = categories ?: return@LaunchedEffect
         if (s.category == null) {
-            // Rouvre sur la dernière chaîne regardée.
+            // Rouvre sur « Watching History », sur la dernière chaîne regardée.
+            val hist = Store.liveHistory.firstOrNull { it.ext.isEmpty() || !Store.isLocked("live", it.ext) }
             val last = Store.lastLive()
-            if (last != null && (last.first == Screen.ALL || last.first == Screen.FAVORITES || cats.any { it.id == last.first }) && !Store.isLocked("live", last.first)) {
+            if (hist != null) {
+                s.category = Screen.HISTORY; s.resumeChannel = hist.id; s.focusIndex = 0
+            } else if (last != null && (last.first == Screen.ALL || last.first == Screen.FAVORITES || cats.any { it.id == last.first }) && !Store.isLocked("live", last.first)) {
                 s.category = last.first; s.resumeChannel = last.second; s.focusIndex = 0
             } else cats.firstOrNull { !Store.isLocked("live", it.id) }?.let { s.category = it.id; s.focusIndex = 0 }
         }
@@ -134,8 +139,18 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
         } else {
             s.playing = c
             s.category?.let { Store.rememberLive(it, c.id) }
-            Playback.play(ctx, x.liveUrl(c.id))
+            Store.addLiveHistory(c)
+            Playback.play(ctx, x.liveUrl(c.id), manual = true)
         }
+    }
+
+    // Chaîne bloquée → le lecteur est passé tout seul à une qualité plus basse : on affiche celle-ci.
+    LaunchedEffect(Playback.switched) {
+        val c = Playback.switched ?: return@LaunchedEffect
+        if (s.playing?.id == c.id) return@LaunchedEffect
+        s.playing = c
+        Store.addLiveHistory(c)
+        c.categoryId?.let { Store.rememberLive(it, c.id) }
     }
 
     // Aura : la chaîne joue en plein écran DERRIÈRE ; catégories et chaînes numérotées par-dessus, semi-transparentes.
@@ -167,7 +182,7 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
                     item(key = "catsearch") {
                         SearchBox(s.catSearching, { s.catSearching = it }, s.catFilter, { s.catFilter = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), label = Str.searchCats)
                     }
-                    val fixed = listOf(Category(Screen.FAVORITES, Str.favorites), Category(Screen.ALL, Str.all))
+                    val fixed = listOf(Category(Screen.HISTORY, Str.watchHistory), Category(Screen.FAVORITES, Str.favorites), Category(Screen.ALL, Str.all))
                     val cq = s.catFilter.trim()
                     val all = (fixed + cats).let { l -> if (cq.isEmpty()) l else l.filter { it.name.contains(cq, ignoreCase = true) } }
                     val focusAt = all.indexOfFirst { it.id == s.category }.takeIf { it >= 0 } ?: 0
@@ -178,10 +193,10 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
                         Tile({ if (s.category != c.id) { if (Store.isLocked("live", c.id)) pinFor = c.id else open() } },
                             m.fillMaxWidth().height(48.dp), RoundedCornerShape(0.dp),
                             colors = listOf(if (selected) Color(0x552F6BFF) else Color.Transparent), focusColors = C.live, focusScale = 1f,
-                            onLongClick = if (c.id == Screen.ALL || c.id == Screen.FAVORITES) null else ({ optionsFor = c })) {
+                            onLongClick = if (c.id == Screen.ALL || c.id == Screen.FAVORITES || c.id == Screen.HISTORY) null else ({ optionsFor = c })) {
                             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(String.format(java.util.Locale.ROOT, "%02d", i + 1), color = C.text2, fontFamily = Sora, fontSize = 17.sp, modifier = Modifier.width(38.dp))
-                                Label((if (Store.isLocked("live", c.id)) "🔒 " else "") + (if (c.id == Screen.FAVORITES) "★ " + c.name else c.name), 16.sp, C.text, if (selected) FontWeight.Bold else FontWeight.Medium)
+                                Label((if (Store.isLocked("live", c.id)) "🔒 " else "") + (when (c.id) { Screen.FAVORITES -> "★ " + c.name; Screen.HISTORY -> "🕘 " + c.name; else -> c.name }), 16.sp, C.text, if (selected) FontWeight.Bold else FontWeight.Medium)
                             }
                         }
                     }
@@ -212,7 +227,11 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
                 if (p != null) {
                     val fav = Store.isFavorite("live", p.id)
                     ToolButton(Icons.Star, if (fav) Color(0xFFFFC94D) else Color.White, fill = fav) { Store.toggleFavorite(Favorite("live", p.id, p.name, p.logo)) }
-                    ToolButton(Icons.Live) { shown?.let { l -> val i = l.indexOfFirst { it.id == p.id }.coerceAtLeast(0); nav.go(Screen.Play(p.name, x.liveUrl(p.id), live = true, channels = l, index = i)) } }
+                    ToolButton(Icons.Live) { shown?.let { l0 ->
+                        // Chaîne de secours (autre qualité) absente de la liste : on la met en tête pour le plein écran.
+                        val l = if (l0.any { it.id == p.id }) l0 else listOf(p) + l0
+                        val i = l.indexOfFirst { it.id == p.id }.coerceAtLeast(0)
+                        nav.go(Screen.Play(p.name, Playback.current ?: x.liveUrl(p.id), live = true, channels = l, index = i)) } }
                 }
             }
         }
@@ -272,6 +291,8 @@ fun PlayerSurface(controls: Boolean, modifier: Modifier = Modifier, onView: (Pla
                 useController = controls
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                 setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                // Bascule de qualité : la dernière image reste affichée jusqu’à ce que la nouvelle arrive (pas d’écran noir).
+                setKeepContentOnPlayerReset(true)
                 keepScreenOn = true
                 if (!controls) {
                     isFocusable = false

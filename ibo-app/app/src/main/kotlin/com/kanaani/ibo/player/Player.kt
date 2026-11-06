@@ -43,7 +43,66 @@ object Playback {
     /** Fourni par la session : adresses équivalentes sur les autres serveurs. */
     var alternatesFor: ((String) -> List<String>)? = null
 
-    fun player(ctx: Context): ExoPlayer = exo ?: build(ctx.applicationContext).also { exo = it }
+    fun player(ctx: Context): ExoPlayer = exo ?: build(ctx.applicationContext).also { exo = it; handler.removeCallbacks(watchdog); handler.post(watchdog) }
+
+    // ── Aura : chaîne qui bloque → même chaîne en qualité plus basse, sans que l'utilisateur ait à faire quoi que ce soit. ──
+    /** Adresse demandée par l'écran (la chaîne choisie) ; [current] peut être une qualité plus basse de celle-ci. */
+    private var requested: String? = null
+    /** Fourni par la session : même chaîne en qualité juste en dessous (null s'il n'y en a pas) et son adresse. */
+    var lowerQuality: ((String, Set<String>) -> Pair<com.kanaani.ibo.data.Channel, String>?)? = null
+    /** Dernière bascule automatique (l'écran Direct met la chaîne affichée à jour). */
+    var switched by mutableStateOf<com.kanaani.ibo.data.Channel?>(null)
+        private set
+    private val tried = mutableSetOf<String>()
+    private var retriedSame = false
+    private var readyOnce = false
+    private var bufferSince = 0L
+    private var startedAt = 0L
+    private val stalls = ArrayDeque<Long>()
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val watchdog = object : Runnable {
+        override fun run() { runCatching { check() }; handler.postDelayed(this, 400) }
+    }
+    private fun isLive(u: String?) = u != null && "/live/" in u
+
+    private fun check() {
+        val p = exo ?: return
+        val url = attempt ?: return
+        if (!isLive(url) || !p.playWhenReady || !com.kanaani.ibo.data.Store.autoQuality) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        while (stalls.isNotEmpty() && now - stalls.first() > 60_000L) stalls.removeFirst()
+        val stuck = p.playbackState == Player.STATE_BUFFERING && when {
+            readyOnce -> bufferSince > 0 && now - bufferSince >= 2_000L
+            else -> now - startedAt >= 5_000L
+        }
+        if (stuck || stalls.size >= 3) degrade(fromError = false)
+    }
+
+    /** Passe à la qualité juste en dessous ; sinon relance une fois la même ; sinon erreur (si c'était une erreur). */
+    private fun degrade(fromError: Boolean): Boolean {
+        val url = current ?: return false
+        stalls.clear()
+        val next = runCatching { lowerQuality?.invoke(url, tried) }.getOrNull()
+        if (next != null) {
+            tried += next.first.id
+            alternates.clear()
+            alternatesFor?.invoke(next.second)?.let { alternates.addAll(it) }
+            triedHls = false
+            switched = next.first
+            start(next.second)
+            return true
+        }
+        if (!retriedSame) {
+            retriedSame = true
+            triedHls = false
+            start(attempt ?: url, keepFallbackState = true)
+            return true
+        }
+        if (fromError) error = true
+        // Rien de mieux : on laisse le flux continuer d'essayer (pas de nouvelle bascule avant un vrai blocage).
+        readyOnce = false; startedAt = android.os.SystemClock.elapsedRealtime() + 25_000L
+        return false
+    }
 
     private fun build(ctx: Context): ExoPlayer {
         val load = DefaultLoadControl.Builder().setBufferDurationsMs(15_000, 50_000, 1_500, 3_000).build()
@@ -57,6 +116,12 @@ object Playback {
             .build()
         p.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (state == Player.STATE_BUFFERING) {
+                    if (bufferSince == 0L) bufferSince = now
+                    if (readyOnce) stalls.addLast(now)
+                } else bufferSince = 0L
+                if (state == Player.STATE_READY) readyOnce = true
                 buffering = state == Player.STATE_BUFFERING
                 ended = state == Player.STATE_ENDED
                 if (state == Player.STATE_READY) error = false
@@ -75,6 +140,7 @@ object Playback {
                         triedHls = false
                         start(alternates.removeFirst(), startMs = pos, keepFallbackState = true)
                     }
+                    isLive(url) && com.kanaani.ibo.data.Store.autoQuality -> degrade(fromError = true)
                     else -> error = true
                 }
             }
@@ -83,9 +149,13 @@ object Playback {
     }
 
     /** Lance [url] (si ce n'est pas déjà elle). */
-    fun play(ctx: Context, url: String, startMs: Long = 0) {
+    fun play(ctx: Context, url: String, startMs: Long = 0, manual: Boolean = false) {
         player(ctx)
-        if (url == current && !error) { exo?.playWhenReady = true; return }
+        if ((url == current || (!manual && url == requested)) && !error) { exo?.playWhenReady = true; return }
+        requested = url
+        switched = null
+        tried.clear(); tried += com.kanaani.ibo.data.QualityLadder.idOf(url)
+        retriedSame = false
         triedHls = false
         alternates.clear()
         alternatesFor?.invoke(url)?.let { alternates.addAll(it) }
@@ -97,6 +167,7 @@ object Playback {
         if (!keepFallbackState) current = url
         attempt = url
         attemptStart = startMs
+        readyOnce = false; bufferSince = 0L; stalls.clear(); startedAt = android.os.SystemClock.elapsedRealtime()
         error = false
         ended = false
         val item = MediaItem.Builder().setUri(url).apply { if (url.endsWith(".m3u8")) setMimeType(MimeTypes.APPLICATION_M3U8) }.build()
@@ -118,12 +189,15 @@ object Playback {
     fun position(): Long = exo?.currentPosition ?: 0
     fun duration(): Long = exo?.duration?.takeIf { it > 0 } ?: 0
 
-    fun retry(ctx: Context) { current?.let { u -> current = null; play(ctx, u) } }
+    fun retry(ctx: Context) { current?.let { u -> current = null; requested = null; play(ctx, u) } }
 
     fun stop() {
         exo?.stop()
         exo?.clearMediaItems()
         current = null
+        requested = null
+        attempt = null
+        switched = null
         error = false
     }
 

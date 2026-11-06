@@ -45,6 +45,11 @@ private fun Screens(onExit: () -> Unit) {
     val nav = remember(session) { Navigator() }
     // Lecteur : si un flux échoue sur ce serveur, il essaie le même flux sur l'autre (principal / secours).
     Playback.alternatesFor = { u -> session.alternates(u) }
+    // Chaîne qui bloque : même chaîne en qualité plus basse (toutes les chaînes chargées une fois en arrière-plan).
+    Playback.lowerQuality = { u, tried ->
+        com.kanaani.ibo.data.QualityLadder.lower(com.kanaani.ibo.data.QualityLadder.idOf(u), tried)?.let { it to session.liveUrl(it.id) }
+    }
+    LaunchedEffect(session) { com.kanaani.ibo.data.QualityLadder.load(session) }
     val top = nav.top
     BackHandler { if (!nav.back()) onExit() }
     // Quitter le Direct ou un lecteur VOD vers un autre écran : la lecture s'arrête (sauf Direct ↔ plein écran).
@@ -66,7 +71,7 @@ private fun Screens(onExit: () -> Unit) {
         is Screen.Play -> if (!top.live) PlayerScreen(nav, session, top)
         Screen.Favorites -> FavoritesScreen(nav, session)
         is Screen.Reorder -> ReorderScreen(session, top)
-        Screen.Account -> AccountScreen(session)
+        Screen.Account -> AccountScreen(nav, session)
         Screen.Downloads -> DownloadsScreen(nav)
         Screen.Settings -> SettingsScreen(nav, session)
     }

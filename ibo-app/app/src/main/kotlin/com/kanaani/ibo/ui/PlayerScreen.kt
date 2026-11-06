@@ -60,11 +60,14 @@ fun PlayerScreen(nav: Navigator, x: Xtream, s: Screen.Play, hosted: Boolean = fa
     var index by remember { mutableIntStateOf(s.index) }
     val channel = if (s.live) s.channels.getOrNull(index) else null
     val url = channel?.let { x.liveUrl(it.id) } ?: s.url
-    val title = channel?.name ?: s.title
+    val title = (if (s.live) Playback.switched?.name else null) ?: channel?.name ?: s.title
     var showInfo by remember { mutableStateOf(true) }
     var infoTick by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(url) { Playback.play(ctx, url, s.startMs) }
+    LaunchedEffect(url) {
+        Playback.play(ctx, url, s.startMs)
+        if (s.live && channel != null && index != s.index) Store.addLiveHistory(channel)
+    }
     // ── « Continuer à regarder » : position mémorisée toutes les 5 s et en quittant. ──
     var finished by remember { mutableStateOf(false) }
     fun saveProgress() {

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -103,60 +105,30 @@ fun FavoritesScreen(nav: Navigator, x: Xtream) {
     }
 }
 
-// ───────────────────────── Compte ─────────────────────────
+// ───────────────────────── Compte & Réglages (Aura : un seul panneau à deux onglets) ─────────────────────────
 
 @Composable
-fun AccountScreen(x: Xtream) {
-    LaunchedEffect(x) { AccountCache.load(x) }
-    val a = AccountCache.value
-    Backdrop {
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 14.dp)) {
-            Header(Str.account)
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(
-                    Modifier.width(460.dp).clip(RoundedCornerShape(20.dp)).background(C.panel).padding(26.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Logo(52.dp)
-                        Spacer(Modifier.width(14.dp))
-                        Column {
-                            Label(x.username, 20.sp, weight = FontWeight.Bold)
-                            Label(com.kanaani.ibo.Brand.name, 12.sp, C.text2)
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    if (a == null) { Box(Modifier.height(120.dp)) { Loading() }; return@Column }
-                    val active = a.status?.lowercase() == "active"
-                    InfoRow(Str.status, if (active) Str.active else (a.status ?: "—"), if (active) Color(0xFF4ADE80) else C.error)
-                    InfoRow(Str.expires, a.expiresAt?.let { date(it) } ?: Str.unlimited)
-                    a.expiresAt?.let { exp ->
-                        val days = ((exp - System.currentTimeMillis()).coerceAtLeast(0) + 86_399_999L) / 86_400_000L
-                        InfoRow(Str.daysLeft, "$days")
-                    }
-                    InfoRow(Str.connections, "${a.activeConnections ?: 0} / ${a.maxConnections ?: "—"}")
-                    a.createdAt?.let { InfoRow(Str.created, date(it)) }
-                    InfoRow(Str.trial, if (a.trial) Str.yes else Str.no)
-                }
-            }
-        }
-    }
+fun AccountScreen(nav: Navigator, x: Xtream) = SettingsPanel(nav, x, 0)
+
+@Composable
+fun SettingsScreen(nav: Navigator, x: Xtream) = SettingsPanel(nav, x, 1)
+
+private val PanelBg = Color(0xFF1B1C1F)
+private val PanelBox = Color(0xFF0A0A0B)
+private val CellBg = Color(0xFF111113)
+private val ButtonBg = Color(0xFF232326)
+
+private fun flag(l: Lang) = when (l) { Lang.AR -> "🇸🇦"; Lang.EN -> "🇬🇧"; Lang.HE -> "🇮🇱" }
+
+/** Adresse de l'appareil, présentée comme une adresse MAC (aa:bb:cc:dd:ee:ff). */
+private fun macLike(id: String): String {
+    val hex = id.lowercase().filter { it in '0'..'9' || it in 'a'..'f' }
+    return if (hex.length >= 12) hex.take(12).chunked(2).joinToString(":") else id
 }
 
 @Composable
-private fun InfoRow(k: String, v: String, color: Color = C.text) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Label(k, 14.sp, C.text2, modifier = Modifier.weight(1f))
-        Label(v, 14.sp, color, FontWeight.Bold)
-    }
-}
-
-// ───────────────────────── Réglages ─────────────────────────
-
-private data class SettingItem(val label: String, val icon: String, val colors: List<Color> = C.small, val onClick: () -> Unit)
-
-@Composable
-fun SettingsScreen(nav: Navigator, x: Xtream) {
+private fun SettingsPanel(nav: Navigator, x: Xtream, startTab: Int) {
+    var tab by rememberSaveable { mutableStateOf(startTab) }
     var dialog by remember { mutableStateOf<String?>(null) }
     var toast by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -164,62 +136,75 @@ fun SettingsScreen(nav: Navigator, x: Xtream) {
     var aboutTaps by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var aboutLast by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
     LaunchedEffect(toast) { if (toast != null) { kotlinx.coroutines.delay(2_500); toast = null } }
-    val first = remember { FocusRequester() }
-    InitialFocus(first)
-    val items = listOf(
-        SettingItem(Str.language, Icons.Globe) { dialog = "lang" },
-        SettingItem(Str.account, Icons.Account) { nav.go(Screen.Account) },
-        SettingItem(Str.layout, Icons.Grid) { dialog = "layout" },
-        SettingItem(Str.orderLive, Icons.Live) { nav.go(Screen.Reorder("live")) },
-        SettingItem(Str.orderMovies, Icons.Movies) { nav.go(Screen.Reorder("movie")) },
-        SettingItem(Str.orderSeries, Icons.Series) { nav.go(Screen.Reorder("series")) },
-        SettingItem(Str.changePin, Icons.Settings) { dialog = "pin" },
-        SettingItem(Str.refresh, Icons.Refresh) { x.clearCache(); AccountCache.value = null; toast = Str.refreshed },
-        SettingItem(Str.checkUpdates, Icons.Refresh) { scope.launch { com.kanaani.ibo.data.Updater.check(manual = true) } },
-        SettingItem(Str.about, Icons.Info) {
-            // Outil caché : 5 appuis rapides sur « À propos » = export des listes (préparation des traductions).
-            val t = System.currentTimeMillis()
-            aboutTaps = if (t - aboutLast < 1_500) aboutTaps + 1 else 1
-            aboutLast = t
-            if (aboutTaps >= 5) {
-                aboutTaps = 0
-                dialog = "admin"
-            } else toast = "${com.kanaani.ibo.Brand.name} · ${Str.version} ${BuildConfig.VERSION_NAME}"
-        },
-        SettingItem(Str.logout, Icons.Logout, C.danger) { dialog = "logout" },
-    )
-    Backdrop {
-        Column(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 18.dp)) {
-            Header(Str.settings)
-            Spacer(Modifier.height(20.dp))
-            items.chunked(4).forEachIndexed { r, row ->
-            if (r > 0) Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth().height(112.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                row.forEachIndexed { i, item ->
-                    Tile(item.onClick, (if (r == 0 && i == 0) Modifier.focusRequester(first) else Modifier).weight(1f).height(112.dp),
-                        RoundedCornerShape(18.dp), colors = item.colors, focusColors = C.live) {
-                        Column(Modifier.fillMaxSize().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Icon(item.icon, 42.dp, Color.White, stroke = 1.6f)
-                            Spacer(Modifier.height(12.dp))
-                            Label(item.label, 15.sp, weight = FontWeight.Bold, lines = 2)
+    LaunchedEffect(x) { AccountCache.load(x) }
+    val tabFocus = remember { FocusRequester() }
+    InitialFocus(tabFocus)
+
+    Box(Modifier.fillMaxSize().background(PanelBg).padding(horizontal = 40.dp, vertical = 36.dp)) {
+        Row(Modifier.fillMaxSize().clip(RoundedCornerShape(6.dp)).background(PanelBox).padding(10.dp)) {
+            // Onglets
+            Column(Modifier.width(300.dp).fillMaxHeight().background(Color(0xFF070708))) {
+                listOf(Triple(Str.account, Icons.Account, 0), Triple(Str.settings, Icons.Settings, 1)).forEach { (label, icon, i) ->
+                    val on = tab == i
+                    Tile({ tab = i }, (if (i == tab) Modifier.focusRequester(tabFocus) else Modifier).fillMaxWidth().height(62.dp)
+                        .onFocusChanged { if (it.isFocused) tab = i },
+                        RoundedCornerShape(14.dp), colors = if (on) C.live else listOf(Color.Transparent), focusColors = C.live, focusScale = 1f) {
+                        Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(icon, 26.dp, Color.White, stroke = 2f)
+                            Spacer(Modifier.width(26.dp))
+                            Label(label, 18.sp, weight = if (on) FontWeight.Bold else FontWeight.Medium)
                         }
                     }
                 }
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
             }
+            Spacer(Modifier.width(24.dp))
+            Column(
+                Modifier.weight(1f).fillMaxHeight().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(end = 14.dp, top = 8.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (tab == 0) AccountTab(x) else {
+                    PanelButton(Str.changePin) { dialog = "pin" }
+                    PanelButton(Str.resetContent) { dialog = "reset" }
+                    PanelButton(Str.resetCode) { dialog = "logout" }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Label(Str.chooseLanguage, 18.sp, weight = FontWeight.Bold)
+                        Spacer(Modifier.width(14.dp))
+                        Tile({ dialog = "lang" }, Modifier.weight(1f).height(56.dp), RoundedCornerShape(14.dp), colors = listOf(ButtonBg), focusColors = C.live, focusScale = 1f) {
+                            Box(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+                                Label(flag(Str.lang) + "  " + Str.lang.label, 18.sp, weight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.Center))
+                                Label("▾", 16.sp, C.text2, modifier = Modifier.align(Alignment.CenterEnd))
+                            }
+                        }
+                    }
+                    val (on, off) = Str.onOff.split('|').let { it[0] to it.getOrElse(1) { "" } }
+                    PanelButton(Str.autoQuality + " : " + (if (Store.autoQuality) on else off)) { Store.setAutoQuality(!Store.autoQuality) }
+                    PanelButton(Str.orderLive) { nav.go(Screen.Reorder("live")) }
+                    PanelButton(Str.orderMovies) { nav.go(Screen.Reorder("movie")) }
+                    PanelButton(Str.orderSeries) { nav.go(Screen.Reorder("series")) }
+                    PanelButton(Str.layout) { dialog = "layout" }
+                    PanelButton(Str.refresh) { x.clearCache(); AccountCache.value = null; toast = Str.refreshed }
+                    PanelButton(Str.checkUpdates) { scope.launch { com.kanaani.ibo.data.Updater.check(manual = true) } }
+                    PanelButton("${Str.about} · ${Str.version} ${BuildConfig.VERSION_NAME}") {
+                        // Outil caché : 5 appuis rapides = outils d'administration (export des listes, envoi de l'ordre).
+                        val t = System.currentTimeMillis()
+                        aboutTaps = if (t - aboutLast < 1_500) aboutTaps + 1 else 1
+                        aboutLast = t
+                        if (aboutTaps >= 5) { aboutTaps = 0; dialog = "admin" }
+                    }
+                }
             }
-            Spacer(Modifier.weight(1f))
-            toast?.let { Label(it, 14.sp, Color(0xFF8FB3FF), FontWeight.SemiBold) }
         }
+        toast?.let { Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp)) { Label(it, 15.sp, Color(0xFF8FB3FF), FontWeight.SemiBold) } }
     }
     if (dialog == "pin") PinChange { dialog = null }
     when (dialog) {
-        "theme" -> ChoiceDialog(Str.homeTheme, listOf(Str.themeClassic, Str.themeBillboard).mapIndexed { i, n ->
-            (if (Store.homeTheme == i) "✓  $n" else n) to { Store.chooseHomeTheme(i); dialog = null }
-        }) { dialog = null }
-        "lang" -> ChoiceDialog(Str.language, Lang.entries.map { l -> l.label to { Store.chooseLanguage(l.code); dialog = null } }) { dialog = null }
-        "logout" -> ChoiceDialog(Str.logoutAsk, listOf(
-            Str.logout to { dialog = null; AccountCache.value = null; com.kanaani.ibo.player.Playback.stop(); Store.logout() },
+        "lang" -> ChoiceDialog(Str.chooseLanguage, Lang.entries.map { l -> ((if (l == Str.lang) "✓  " else "") + flag(l) + "  " + l.label) to { Store.chooseLanguage(l.code); dialog = null } }) { dialog = null }
+        "reset" -> ChoiceDialog(Str.resetContentAsk, listOf<Pair<String, () -> Unit>>(
+            Str.yes to { dialog = null; Store.resetContent(); toast = Str.resetDone },
+            Str.cancel to { dialog = null },
+        )) { dialog = null }
+        "logout" -> ChoiceDialog(Str.logoutAsk, listOf<Pair<String, () -> Unit>>(
+            Str.resetCode to { dialog = null; AccountCache.value = null; com.kanaani.ibo.player.Playback.stop(); Store.logout() },
             Str.cancel to { dialog = null },
         )) { dialog = null }
         "layout" -> {
@@ -239,7 +224,48 @@ fun SettingsScreen(nav: Navigator, x: Xtream) {
             Str.uploadLayout to { dialog = "upload" },
         )) { dialog = null }
         "upload" -> UploadLayoutDialog(onDone = { msg -> dialog = null; toast = msg }) { dialog = null }
-        "about" -> ChoiceDialog("${com.kanaani.ibo.Brand.name} · ${Str.version} ${BuildConfig.VERSION_NAME}", listOf(Str.ok to { dialog = null })) { dialog = null }
+    }
+}
+
+@Composable
+private fun AccountTab(x: Xtream) {
+    val a = AccountCache.value
+    Label(Str.accountInfo, 28.sp, weight = FontWeight.Bold)
+    InfoCell(Str.activationCode, Store.trialLogin()?.first ?: x.username)
+    if (a == null) { Box(Modifier.fillMaxWidth().height(90.dp)) { Loading() } } else {
+        val active = a.status?.lowercase() == "active"
+        InfoCell(Str.status, if (active) Str.active else (a.status ?: "—"), if (active) Color(0xFF4ADE80) else C.error)
+        val trialEnd = if (Store.trialLogin() != null) com.kanaani.ibo.data.Trial.expires.takeIf { it > 0 } else null
+        val exp = trialEnd ?: a.expiresAt
+        InfoCell(Str.expiryDate, exp?.let {
+            val days = ((it - System.currentTimeMillis()).coerceAtLeast(0) + 86_399_999L) / 86_400_000L
+            "$days ${Str.days} · ${date(it, "dd/MM/yyyy")}"
+        } ?: Str.unlimited)
+        InfoCell(Str.connections, "${a.activeConnections ?: 0} / ${a.maxConnections ?: "—"}")
+    }
+    Spacer(Modifier.height(6.dp))
+    Label(Str.appInfo, 28.sp, weight = FontWeight.Bold)
+    InfoCell(Str.macAddress, macLike(com.kanaani.ibo.data.Panel.deviceId()))
+    InfoCell(Str.version, "${com.kanaani.ibo.Brand.name} ${BuildConfig.VERSION_NAME}")
+}
+
+/** Ligne « intitulé | valeur » en deux cases sombres, comme sur les captures. */
+@Composable
+private fun InfoCell(k: String, v: String, color: Color = C.text) {
+    Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.weight(0.38f).fillMaxHeight().clip(RoundedCornerShape(6.dp)).background(CellBg).padding(horizontal = 18.dp), contentAlignment = Alignment.CenterEnd) {
+            Label(k, 18.sp, C.text, FontWeight.SemiBold)
+        }
+        Box(Modifier.weight(0.62f).fillMaxHeight().clip(RoundedCornerShape(6.dp)).background(CellBg).padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
+            Label(v, 19.sp, color, FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun PanelButton(label: String, onClick: () -> Unit) {
+    Tile(onClick, Modifier.fillMaxWidth().height(58.dp), RoundedCornerShape(16.dp), colors = listOf(ButtonBg), focusColors = C.live, focusScale = 1f) {
+        Box(Modifier.fillMaxSize().padding(horizontal = 18.dp), contentAlignment = Alignment.Center) { Label(label, 18.sp, weight = FontWeight.Bold) }
     }
 }
 

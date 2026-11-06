@@ -111,6 +111,8 @@ object Store {
             sp.getString("hidden_$k", null)?.split('\n')?.filter { it.isNotEmpty() }?.toSet().orEmpty()
         }
         watching = decodeWatch(sp.getString("watching", null))
+        liveHistory = decode(sp.getString("live_history", null))
+        autoQuality = sp.getBoolean("auto_quality", true)
         Layouts.init(ctx, categoryOrders.values.any { it.isNotEmpty() } || hiddenCategories.values.any { it.isNotEmpty() } || categoryNames.values.any { it.isNotEmpty() })
         aspect = sp.getInt("aspect", 0).mod(3)
         homeTheme = sp.getInt("home_theme", 0).let { if (it == 1) 1 else 0 }
@@ -136,6 +138,29 @@ object Store {
     }
     fun pin(): String = sp.getString("parent_pin", "0000") ?: "0000"
     fun setPin(p: String) { sp.edit().putString("parent_pin", p).apply() }
+
+    /** Aura : « Watching History » du direct (30 dernières chaînes, la plus récente en tête ; ext = catégorie). */
+    var liveHistory by mutableStateOf<List<Favorite>>(emptyList())
+        private set
+    fun addLiveHistory(c: Channel) {
+        liveHistory = (listOf(Favorite("live", c.id, c.name, c.logo, c.categoryId.orEmpty())) + liveHistory.filterNot { it.id == c.id }).take(30)
+        sp.edit().putString("live_history", encode(liveHistory)).apply()
+    }
+
+    /** Aura : passer tout seul à une qualité plus basse de la même chaîne quand elle bloque. */
+    var autoQuality by mutableStateOf(true)
+        private set
+    fun setAutoQuality(on: Boolean) { autoQuality = on; sp.edit().putBoolean("auto_quality", on).apply() }
+
+    /** Aura : « Réinitialiser le contenu » (favoris, historique, reprise, ordre des catégories, verrous). */
+    fun resetContent() {
+        favorites = emptyList(); watching = emptyList(); liveHistory = emptyList(); lockedCategories = emptySet()
+        val e = sp.edit().remove("favorites").remove("watching").remove("live_history").remove("locked_cats")
+            .remove("last_live_cat").remove("last_live_ch")
+        listOf("live", "movie", "series").forEach { k -> if (categoryOrders[k].orEmpty().isNotEmpty() && Layouts.mode == "custom") e.remove("order_$k") }
+        e.apply()
+        if (Layouts.mode == "custom") categoryOrders = categoryOrders.mapValues { emptyList() }
+    }
 
     fun lastHost(): String? = sp.getString("host", null)
     fun rememberHost(h: String) { sp.edit().putString("host", h).apply() }
@@ -249,9 +274,10 @@ object Store {
     }
 
     fun logout() {
-        sp.edit().remove("user").remove("pass").remove("favorites").remove("watching").remove("trial_u").remove("trial_p").remove("trial_host").apply()
+        sp.edit().remove("user").remove("pass").remove("favorites").remove("watching").remove("live_history").remove("trial_u").remove("trial_p").remove("trial_host").apply()
         Trial.block = null
         watching = emptyList()
+        liveHistory = emptyList()
         // L'ordre des catégories est une préférence de l'appareil : il reste après une déconnexion.
         favorites = emptyList()
         session = null

@@ -79,6 +79,8 @@ sealed class Screen {
     companion object {
         /** Catégorie spéciale du Direct : les favoris. */
         const val FAVORITES = "__fav__"
+        /** Aura : « Watching History » du direct. */
+        const val HISTORY = "__hist__"
         /** Catégorie spéciale : tout. */
         const val ALL = "__all__"
         /** Films / séries : derniers ajouts ou dernières mises à jour. */
