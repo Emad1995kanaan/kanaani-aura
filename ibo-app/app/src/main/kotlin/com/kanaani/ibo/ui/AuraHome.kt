@@ -70,7 +70,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
                 Modifier.width(260.dp).fillMaxHeight().background(Color(0xFF0B0B0D))
                     .verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(vertical = 22.dp),
             ) {
-                Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) { Logo(112.dp) }
+                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) { Logo(150.dp) }
                 Spacer(Modifier.height(18.dp))
                 MenuItem(Str.live, Icons.Live, Modifier.focusRequester(first)) { nav.go(Screen.Live()) }
                 MenuItem(Str.movies, Icons.Movies) { nav.go(Screen.Catalog(series = false)) }
