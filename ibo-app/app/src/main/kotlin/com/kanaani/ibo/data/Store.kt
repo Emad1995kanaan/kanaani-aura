@@ -87,6 +87,7 @@ object Store {
 
     fun init(ctx: Context) {
         sp = ctx.getSharedPreferences("kanaaniaura", Context.MODE_PRIVATE)
+        lockedCategories = sp.getStringSet("locked_cats", emptySet())?.toSet() ?: emptySet()
         Translations.init(ctx)
         Downloads.init(ctx)
         ListCache.init(ctx)
@@ -116,6 +117,26 @@ object Store {
     }
 
     /** Dernier serveur (principal / secours) qui a répondu. */
+    /** Aura : dernière chaîne regardée (catégorie + chaîne) pour rouvrir le direct dessus. */
+    fun lastLive(): Pair<String, String>? {
+        val c = sp.getString("last_live_cat", null) ?: return null
+        val ch = sp.getString("last_live_ch", null) ?: return null
+        return c to ch
+    }
+    fun rememberLive(category: String, channel: String) { sp.edit().putString("last_live_cat", category).putString("last_live_ch", channel).apply() }
+
+    /** Aura : catégories verrouillées (code parental) et code (0000 par défaut). */
+    var lockedCategories by androidx.compose.runtime.mutableStateOf<Set<String>>(emptySet())
+        private set
+    fun isLocked(kind: String, id: String) = "$kind:$id" in lockedCategories
+    fun toggleLock(kind: String, id: String) {
+        val k = "$kind:$id"
+        lockedCategories = if (k in lockedCategories) lockedCategories - k else lockedCategories + k
+        sp.edit().putStringSet("locked_cats", lockedCategories).apply()
+    }
+    fun pin(): String = sp.getString("parent_pin", "0000") ?: "0000"
+    fun setPin(p: String) { sp.edit().putString("parent_pin", p).apply() }
+
     fun lastHost(): String? = sp.getString("host", null)
     fun rememberHost(h: String) { sp.edit().putString("host", h).apply() }
 

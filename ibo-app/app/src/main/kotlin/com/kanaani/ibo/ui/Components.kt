@@ -1,5 +1,6 @@
 package com.kanaani.ibo.ui
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -117,6 +118,7 @@ fun Tile(
     colors: List<Color> = C.small,
     focusColors: List<Color>? = null,
     focusScale: Float = 1.05f,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable BoxScope.(focused: Boolean) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -128,7 +130,8 @@ fun Tile(
             .clip(shape)
             .background(if (bg.size > 1) Brush.linearGradient(bg) else SolidColor(bg.first()))
             .then(if (focused) Modifier.border(2.dp, C.focus, shape) else Modifier)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .then(if (onLongClick == null) Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                else Modifier.combinedClickable(interactionSource = interaction, indication = null, onClick = onClick, onLongClick = onLongClick)),
     ) { content(focused) }
 }
 
@@ -288,6 +291,30 @@ fun SearchBox(open: Boolean, onOpen: (Boolean) -> Unit, value: String, onChange:
         Spacer(Modifier.width(6.dp))
         Tile({ keyboard?.hide(); onChange(""); onOpen(false) }, Modifier.size(40.dp), RoundedCornerShape(12.dp), colors = listOf(C.card), focusColors = C.live) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Label("✕", 15.sp, weight = FontWeight.Bold) }
+        }
+    }
+}
+
+/** Code parental : demande le code (4 chiffres) puis [onOk]. */
+@Composable
+fun PinDialog(onOk: () -> Unit, onDismiss: () -> Unit) {
+    var code by remember { mutableStateOf("") }
+    var bad by remember { mutableStateOf(false) }
+    val f = remember { FocusRequester() }
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
+    Box(Modifier.fillMaxSize().background(Color(0xCC000000)), contentAlignment = Alignment.Center) {
+        Column(Modifier.width(380.dp).clip(RoundedCornerShape(16.dp)).background(C.panel).border(1.dp, C.line, RoundedCornerShape(16.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(Str.enterPin, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Field(code, { code = it.filter(Char::isDigit).take(8); bad = false }, "••••", Modifier.fillMaxWidth(), focusRequester = f, numeric = true, imeAction = ImeAction.Done,
+                onDone = { if (code == com.kanaani.ibo.data.Store.pin()) onOk() else bad = true }, startEditing = true)
+            if (bad) Label(Str.wrongPin, 13.sp, C.error)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile({ if (code == com.kanaani.ibo.data.Store.pin()) onOk() else bad = true }, Modifier.weight(1f).height(46.dp), RoundedCornerShape(10.dp), colors = C.live) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Label("OK", 16.sp, weight = FontWeight.Bold) } }
+                Tile(onDismiss, Modifier.weight(1f).height(46.dp), RoundedCornerShape(10.dp), colors = listOf(C.card)) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Label(Str.cancel, 16.sp, weight = FontWeight.Bold) } }
+            }
         }
     }
 }

@@ -63,6 +63,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
         }
     }
     var toast by remember { mutableStateOf<String?>(null) }
+    var askRefresh by remember { mutableStateOf(false) }
     LaunchedEffect(toast) { if (toast != null) { kotlinx.coroutines.delay(2000); toast = null } }
     Backdrop {
         Row(Modifier.fillMaxSize()) {
@@ -78,7 +79,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
                 MenuItem(Str.series, Icons.Series) { nav.go(Screen.Catalog(series = true)) }
                 MenuItem(Str.favorites, Icons.Heart) { nav.go(Screen.Favorites) }
                 MenuItem(Str.downloads, Icons.Download) { nav.go(Screen.Downloads) }
-                MenuItem(Str.refresh, Icons.Refresh) { x.clearCache(); AccountCache.value = null; reload++; toast = Str.refreshed }
+                MenuItem(Str.refresh, Icons.Refresh) { askRefresh = true }
                 MenuItem(Str.account, Icons.Account) { nav.go(Screen.Account) }
                 MenuItem(Str.settings, Icons.Settings) { nav.go(Screen.Settings) }
                 Spacer(Modifier.height(24.dp))
@@ -99,6 +100,7 @@ fun AuraHome(nav: Navigator, x: Xtream, now: Long) {
                 item { PosterRow(Str.latestSeries, shows, {}) { p -> p.show?.let { nav.go(Screen.ShowDetail(it)) } } }
             }
         }
+        if (askRefresh) ChoiceDialog(Str.refreshAsk, listOf(Str.yes to { askRefresh = false; x.clearCache(); AccountCache.value = null; reload++; toast = Str.refreshed }, Str.cancel to { askRefresh = false })) { askRefresh = false }
         toast?.let { Box(Modifier.align(Alignment.BottomCenter).padding(24.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xE6222226)).padding(horizontal = 18.dp, vertical = 10.dp)) { Label(it, 14.sp) } }
     }
 }

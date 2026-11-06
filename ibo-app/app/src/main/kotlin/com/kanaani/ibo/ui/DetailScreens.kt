@@ -1,5 +1,7 @@
 package com.kanaani.ibo.ui
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
@@ -98,12 +100,9 @@ fun MovieDetailScreen(nav: Navigator, x: Xtream, s: Screen.MovieDetail) {
     InitialFocus(playFocus)
     val fav = Store.isFavorite("movie", m.id)
     DetailBackdrop(info?.backdrop ?: art?.backdrop ?: m.poster) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 28.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            Box(Modifier.width(280.dp).height(420.dp).clip(RoundedCornerShape(16.dp)).background(C.card)) {
-                com.kanaani.ibo.data.PosterImage(m.poster, "movie", m.name, Modifier.fillMaxSize())
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(m.name, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 38.sp, maxLines = 2)
+        Row(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 32.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+                Text(com.kanaani.ibo.data.Promo.clean(m.name), color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 48.sp, maxLines = 2)
                 Stars((info?.rating ?: m.rating))
                 Meta(listOf(info?.year, info?.duration, info?.genre, (info?.rating ?: m.rating)?.let { "★ $it" }))
                 (info?.plot?.takeIf { it.isNotBlank() } ?: art?.overview)?.let { Label(it, 14.sp, C.text, FontWeight.Normal, lines = 6) }
@@ -122,6 +121,13 @@ fun MovieDetailScreen(nav: Navigator, x: Xtream, s: Screen.MovieDetail) {
                         }
                     } else ActionButton(Str.play, Icons.Play, true, Modifier.focusRequester(playFocus)) {
                         nav.go(Screen.Play(m.name, x.movieUrl(m), live = false, watch = w))
+                    }
+                    info?.trailer?.takeIf { it.isNotBlank() }?.let { t ->
+                        val ctx = androidx.compose.ui.platform.LocalContext.current
+                        ActionButton(Str.trailer, Icons.Play, false) {
+                            val url = if (t.startsWith("http")) t else "https://www.youtube.com/watch?v=$t"
+                            runCatching { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        }
                     }
                     ActionButton(if (fav) Str.removeFav else Str.addFav, Icons.Star, false, fill = fav) {
                         Store.toggleFavorite(Favorite("movie", m.id, m.name, m.poster, m.ext))
@@ -157,93 +163,50 @@ fun ShowDetailScreen(nav: Navigator, x: Xtream, s: Screen.ShowDetail) {
     val saved = Store.watchOf("series", show.id)
     val scope = rememberCoroutineScope()
 
+    var seasonPick by remember { mutableStateOf(false) }
     DetailBackdrop(info?.backdrop ?: art?.backdrop ?: show.poster) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            Column(Modifier.width(300.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.width(200.dp).height(300.dp).clip(RoundedCornerShape(14.dp)).background(C.card)) {
-                    com.kanaani.ibo.data.PosterImage(show.poster, "tv", show.name, Modifier.fillMaxSize())
-                }
-                Text(show.name, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 28.sp, maxLines = 2)
+        Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 26.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(com.kanaani.ibo.data.Promo.clean(show.name), color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 46.sp, maxLines = 1)
+            (info?.plot?.takeIf { it.isNotBlank() } ?: art?.overview)?.let { Label(it, 15.sp, C.text, FontWeight.Normal, lines = 2, modifier = Modifier.fillMaxWidth(0.75f)) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Meta(listOf(info?.genre, info?.year))
                 Stars(info?.rating ?: show.rating)
-                Meta(listOf(info?.year, info?.genre, (info?.rating ?: show.rating)?.let { "★ $it" }))
-                (info?.plot?.takeIf { it.isNotBlank() } ?: art?.overview)?.let { Label(it, 12.sp, C.text2, FontWeight.Normal, lines = 5) }
-                if (saved != null && saved.episodeId.isNotEmpty()) {
-                    ActionButton("${Str.resume}  S${saved.season} E${saved.episode}", Icons.Play, true) {
-                        resumeWatch(nav, x, scope, saved)
-                    }
-                }
-                ActionButton(if (fav) Str.removeFav else Str.addFav, Icons.Star, false, fill = fav) {
-                    Store.toggleFavorite(Favorite("series", show.id, show.name, show.poster))
-                }
-                if (episodes.isNotEmpty()) ActionButton(Str.downloadSeason + (s.season?.let { " $it" } ?: ""), Icons.Download, false) {
+            }
+            info?.cast?.let { Label("${Str.cast}: $it", 13.sp, C.text2) }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (seasons.isNotEmpty()) ActionButton("▾  ${Str.season} ${s.season ?: ""}", Icons.Series, false) { seasonPick = true }
+                if (saved != null && saved.episodeId.isNotEmpty()) ActionButton("${Str.resume}  S${saved.season} E${saved.episode}", Icons.Play, true) { resumeWatch(nav, x, scope, saved) }
+                ActionButton(if (fav) Str.removeFav else Str.addFav, Icons.Star, false, fill = fav) { Store.toggleFavorite(Favorite("series", show.id, show.name, show.poster)) }
+                if (episodes.isNotEmpty()) ActionButton(Str.downloadSeason, Icons.Download, false) {
                     episodes.forEach { e -> if (com.kanaani.ibo.data.Downloads.get("episode:${e.id}") == null) download(episodeDl(x, show, e)) }
                 }
             }
-            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (info == null) { Loading(); return@Column }
-                if (seasons.isEmpty()) { Message(Str.noEpisodes); return@Column }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(seasons.keys.toList(), key = { it }) { n ->
-                        val on = s.season == n
-                        Tile({ s.season = n }, Modifier.height(36.dp), RoundedCornerShape(18.dp),
-                            colors = if (on) C.live else listOf(C.card), focusColors = C.live, focusScale = 1.04f) {
-                            Box(Modifier.fillMaxHeight().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
-                                Label("${Str.season} $n", 13.sp, weight = if (on) FontWeight.Bold else FontWeight.Medium)
-                            }
-                        }
-                    }
-                }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
+            when {
+                info == null -> Loading()
+                seasons.isEmpty() -> Message(Str.noEpisodes)
+                else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                     itemsIndexed(episodes, key = { i, e -> e.id + "#" + i }) { i, e ->
                         val here = saved?.takeIf { it.episodeId == e.id }
-                        val dl = com.kanaani.ibo.data.Downloads.get("episode:${e.id}")
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Tile({
                             val w = Watch("series", show.id, show.name, show.poster, e.ext, e.id, e.season, e.number)
-                            nav.go(Screen.Play("${show.name} · ${Str.episode} ${e.number}", x.episodeUrl(e), live = false, episodes = episodes, index = i,
+                            nav.go(Screen.Play("${show.name} · S${e.season}.E${e.number}", x.episodeUrl(e), live = false, episodes = episodes, index = i,
                                 watch = w, startMs = here?.pos ?: 0))
-                        },
-                            (if (i == 0) Modifier.focusRequester(firstEpisode) else Modifier).weight(1f).height(58.dp),
-                            RoundedCornerShape(12.dp), colors = listOf(C.card), focusColors = C.live, focusScale = 1.02f) {
-                            Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.width(80.dp).height(45.dp).clip(RoundedCornerShape(8.dp)).background(C.cardHi), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Play, 16.dp, Color.White, fill = true)
-                                    if (e.image != null) AsyncImage(e.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Label("${Str.episode} ${e.number}", 11.sp, C.text2)
-                                    Label(e.title, 14.sp, weight = FontWeight.SemiBold)
-                                    if (here != null && here.progress > 0f) Box(Modifier.padding(top = 3.dp).fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(C.cardHi)) {
-                                        Box(Modifier.fillMaxWidth(here.progress).fillMaxHeight().background(Brush.horizontalGradient(C.live)))
-                                    }
-                                }
-                                e.duration?.let { Label(it, 11.sp, C.text3) }
+                        }, (if (i == 0) Modifier.focusRequester(firstEpisode) else Modifier).width(280.dp).height(158.dp), RoundedCornerShape(12.dp),
+                            colors = listOf(C.card), focusScale = 1.05f) {
+                            AsyncImage(e.image ?: info?.backdrop ?: art?.backdrop ?: show.poster, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x33000000), Color(0xD9000000)))))
+                            Column(Modifier.align(androidx.compose.ui.AbsoluteAlignment.BottomLeft).padding(12.dp)) {
+                                Text("#${e.number}", color = Color.White, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 34.sp)
+                                Label(e.title, 14.sp, Color.White, FontWeight.SemiBold)
                             }
-                        }
-                        // Télécharger l'épisode (ou état du téléchargement).
-                        Tile({
-                            when (dl?.state) {
-                                null -> download(episodeDl(x, show, e))
-                                com.kanaani.ibo.data.DlState.Done -> if (!playDownload(nav, dl)) nav.go(Screen.Downloads)
-                                com.kanaani.ibo.data.DlState.Paused, com.kanaani.ibo.data.DlState.Failed -> com.kanaani.ibo.data.Downloads.resume(dl.key)
-                                else -> nav.go(Screen.Downloads)
+                            if (here != null && here.progress > 0f) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp).background(Color(0x66000000))) {
+                                Box(Modifier.fillMaxWidth(here.progress).fillMaxHeight().background(Brush.horizontalGradient(C.live)))
                             }
-                        }, Modifier.size(58.dp), RoundedCornerShape(12.dp), colors = listOf(C.card), focusColors = C.live, focusScale = 1.04f) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                when (dl?.state) {
-                                    null -> Icon(Icons.Download, 22.dp, Color.White)
-                                    com.kanaani.ibo.data.DlState.Done -> Label("✓", 20.sp, weight = FontWeight.Bold)
-                                    com.kanaani.ibo.data.DlState.Running -> Label("${(dl.progress * 100).toInt()}%", 12.sp, weight = FontWeight.Bold)
-                                    com.kanaani.ibo.data.DlState.Failed -> Label("!", 20.sp, C.error, FontWeight.Bold)
-                                    else -> Label("⏸", 16.sp)
-                                }
-                            }
-                        }
                         }
                     }
                 }
             }
         }
+        if (seasonPick) ChoiceDialog(Str.season, seasons.keys.map { n -> "${if (n == s.season) "✓  " else ""}${Str.season} $n" to { s.season = n; seasonPick = false } }) { seasonPick = false }
     }
 }

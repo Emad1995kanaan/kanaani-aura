@@ -61,6 +61,8 @@ data class MovieInfo(
     val plot: String?, val genre: String?, val year: String?, val duration: String?,
     val backdrop: String?, val director: String?, val cast: String?, val rating: String?,
     val tmdbId: String? = null,
+    /** Bande-annonce YouTube (id ou lien), si le serveur la donne. */
+    val trailer: String? = null,
 )
 
 data class Episode(val id: String, val title: String, val number: Int, val season: Int, val ext: String, val plot: String?, val image: String?, val duration: String?)
@@ -368,6 +370,7 @@ class Xtream(hosts: List<String>, val username: String, val password: String) {
             cast = i.str("cast") ?: i.str("actors"),
             rating = i.str("rating"),
             tmdbId = i.str("tmdb_id") ?: i.str("tmdb") ?: (root["movie_data"] as? JsonObject)?.str("tmdb_id"),
+            trailer = i.str("youtube_trailer") ?: i.str("trailer"),
         )
     }
 

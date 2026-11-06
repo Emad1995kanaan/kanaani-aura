@@ -173,6 +173,7 @@ fun SettingsScreen(nav: Navigator, x: Xtream) {
         SettingItem(Str.orderLive, Icons.Live) { nav.go(Screen.Reorder("live")) },
         SettingItem(Str.orderMovies, Icons.Movies) { nav.go(Screen.Reorder("movie")) },
         SettingItem(Str.orderSeries, Icons.Series) { nav.go(Screen.Reorder("series")) },
+        SettingItem(Str.changePin, Icons.Settings) { dialog = "pin" },
         SettingItem(Str.refresh, Icons.Refresh) { x.clearCache(); AccountCache.value = null; toast = Str.refreshed },
         SettingItem(Str.checkUpdates, Icons.Refresh) { scope.launch { com.kanaani.ibo.data.Updater.check(manual = true) } },
         SettingItem(Str.about, Icons.Info) {
@@ -211,6 +212,7 @@ fun SettingsScreen(nav: Navigator, x: Xtream) {
             toast?.let { Label(it, 14.sp, Color(0xFF8FB3FF), FontWeight.SemiBold) }
         }
     }
+    if (dialog == "pin") PinChange { dialog = null }
     when (dialog) {
         "theme" -> ChoiceDialog(Str.homeTheme, listOf(Str.themeClassic, Str.themeBillboard).mapIndexed { i, n ->
             (if (Store.homeTheme == i) "✓  $n" else n) to { Store.chooseHomeTheme(i); dialog = null }
@@ -284,6 +286,25 @@ private fun UploadLayoutDialog(onDone: (String) -> Unit, onDismiss: () -> Unit) 
             }
             Tile(onDismiss, Modifier.fillMaxWidth().height(42.dp), RoundedCornerShape(12.dp), colors = listOf(C.card), focusColors = C.live) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Label(Str.cancel, 14.sp, weight = FontWeight.SemiBold) }
+            }
+        }
+    }
+}
+
+
+/** Aura : changer le code parental (ancien code puis nouveau). */
+@Composable
+private fun PinChange(onDone: () -> Unit) {
+    var step by remember { mutableStateOf(0) }
+    var code by remember { mutableStateOf("") }
+    if (step == 0) PinDialog({ step = 1 }, onDone)
+    else Box(Modifier.fillMaxSize().background(Color(0xCC000000)), contentAlignment = Alignment.Center) {
+        Column(Modifier.width(380.dp).clip(RoundedCornerShape(16.dp)).background(C.panel).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Label(Str.changePin, 20.sp, weight = FontWeight.Bold)
+            Field(code, { code = it.filter(Char::isDigit).take(8) }, "0000", Modifier.fillMaxWidth(), numeric = true, startEditing = true,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done, onDone = { if (code.length >= 4) { com.kanaani.ibo.data.Store.setPin(code); onDone() } })
+            Tile({ if (code.length >= 4) { com.kanaani.ibo.data.Store.setPin(code); onDone() } }, Modifier.fillMaxWidth().height(46.dp), RoundedCornerShape(10.dp), colors = C.live) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Label("OK", 16.sp, weight = FontWeight.Bold) }
             }
         }
     }

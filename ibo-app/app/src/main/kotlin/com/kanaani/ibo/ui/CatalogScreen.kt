@@ -106,11 +106,21 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
     }
     val scope = rememberCoroutineScope()
     val source = if (s.category == Screen.CONTINUE) continuing else items
-    val shown = remember(source, s.filter) {
+    val shown = remember(source, s.filter, s.sort) {
         val items = source
         val q = s.filter.trim()
-        items?.let { list -> if (q.isEmpty()) list else list.filter { it.name.contains(q, ignoreCase = true) } }
+        val filtered = items?.let { list -> if (q.isEmpty()) list else list.filter { it.name.contains(q, ignoreCase = true) } }
+        fun year(p: Poster) = Regex("""(19|20)\d{2}""").findAll(p.name).lastOrNull()?.value?.toIntOrNull() ?: 0
+        fun rate(p: Poster) = p.rating?.toDoubleOrNull() ?: 0.0
+        when (s.sort) {
+            1 -> filtered?.sortedWith(compareByDescending<Poster> { year(it) }.thenByDescending { it.movie?.added ?: it.show?.updated ?: 0L })
+            2 -> filtered?.sortedByDescending { rate(it) }
+            3 -> filtered?.sortedBy { com.kanaani.ibo.data.Promo.clean(it.name).lowercase() }
+            4 -> filtered?.sortedByDescending { com.kanaani.ibo.data.Promo.clean(it.name).lowercase() }
+            else -> filtered
+        }
     }
+    var sortOpen by remember { mutableStateOf(false) }
 
     val catFocus = remember { FocusRequester() }
     val gridFocus = remember { FocusRequester() }
@@ -139,7 +149,7 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
                                 SearchBox(s.catSearching, { s.catSearching = it }, s.catFilter, { s.catFilter = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), label = Str.searchCats)
                             }
                             // « Tous » en tête de liste.
-                            val fixed = listOf(Category(Screen.ALL, Str.all), Category(Screen.CONTINUE, Str.continueWatching),
+                            val fixed = listOf(Category(Screen.CONTINUE, Str.recentlyViewed), Category(Screen.ALL, Str.all),
                                 Category(Screen.LATEST, if (s.series) Str.latestSeries else Str.latestMovies))
                             val cq = s.catFilter.trim()
                             val all = (fixed + cats).let { l -> if (cq.isEmpty()) l else l.filter { it.name.contains(cq, ignoreCase = true) } }
@@ -159,7 +169,19 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
                     }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SearchBox(s.searching, { s.searching = it }, s.filter, { s.filter = it }, Modifier.width(320.dp))
+                    // Tri + nom de la catégorie + recherche
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Tile({ sortOpen = true }, Modifier.height(46.dp).width(190.dp), RoundedCornerShape(23.dp), colors = listOf(Color(0xFF1C1C20)), focusColors = listOf(Color(0xFF2A2A30)), focusScale = 1.03f) {
+                            Row(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Label("▾", 14.sp, C.text2); Spacer(Modifier.width(10.dp))
+                                Label(Str.sortNames[s.sort], 16.sp, modifier = Modifier.weight(1f)); Label("☰", 16.sp, C.text2)
+                            }
+                        }
+                        val catName = when (s.category) { Screen.ALL -> Str.all; Screen.CONTINUE -> Str.continueWatching; Screen.LATEST -> if (s.series) Str.latestSeries else Str.latestMovies
+                            else -> categories?.firstOrNull { it.id == s.category }?.name.orEmpty() }
+                        androidx.compose.material3.Text(catName, color = C.text, fontFamily = Sora, fontWeight = FontWeight.Bold, fontSize = 24.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                        SearchBox(s.searching, { s.searching = it }, s.filter, { s.filter = it }, Modifier.width(260.dp))
+                    }
                     val list = shown
                     when {
                         list == null -> Loading()
@@ -185,6 +207,7 @@ fun CatalogScreen(nav: Navigator, x: Xtream, s: Screen.Catalog) {
                 }
             }
         }
+        if (sortOpen) ChoiceDialog(Str.sortBy, Str.sortNames.mapIndexed { i, n -> (if (i == s.sort) "✓  $n" else n) to { s.sort = i; sortOpen = false } }) { sortOpen = false }
     }
 }
 
@@ -198,10 +221,8 @@ fun PosterCard(p: Poster, modifier: Modifier, onClick: () -> Unit) {
         com.kanaani.ibo.data.PosterImage(p.image, if (p.show != null || p.watch?.kind == "series") "tv" else "movie", p.watch?.name ?: p.name, Modifier.fillMaxSize())
         // Étoiles (note sur 10 → 5 étoiles)
         val r = p.rating?.toDoubleOrNull()?.takeIf { it > 0 }
-        if (r != null) Box(Modifier.align(Alignment.TopStart).fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0xAA000000), Color.Transparent))).padding(horizontal = 6.dp, vertical = 5.dp)) {
-            val full = (r / 2).coerceIn(0.0, 5.0)
-            androidx.compose.material3.Text(buildString { repeat(5) { k -> append(if (full >= k + 0.5) "★" else "☆") } },
-                color = Color(0xFFFFC72C), fontSize = 14.sp, maxLines = 1)
+        if (r != null) Box(Modifier.align(androidx.compose.ui.AbsoluteAlignment.TopLeft).padding(8.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xCC111114)).padding(horizontal = 10.dp, vertical = 4.dp)) {
+            androidx.compose.material3.Text(String.format(java.util.Locale.ROOT, "%.1f ★", r), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
         }
         // Titre en bas, sur l'affiche
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)))).padding(start = 8.dp, end = 8.dp, top = 22.dp, bottom = 8.dp)) {

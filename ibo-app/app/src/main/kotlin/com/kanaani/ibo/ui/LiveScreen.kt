@@ -100,10 +100,21 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
     // Ouverture : premier vrai bouquet sélectionné (ses chaînes s'affichent), focus sur lui.
     LaunchedEffect(categories) {
         val cats = categories ?: return@LaunchedEffect
-        if (s.category == null) cats.firstOrNull()?.let { s.category = it.id; s.focusIndex = 0 }
+        if (s.category == null) {
+            // Rouvre sur la dernière chaîne regardée.
+            val last = Store.lastLive()
+            if (last != null && (last.first == Screen.ALL || last.first == Screen.FAVORITES || cats.any { it.id == last.first }) && !Store.isLocked("live", last.first)) {
+                s.category = last.first; s.resumeChannel = last.second; s.focusIndex = 0
+            } else cats.firstOrNull { !Store.isLocked("live", it.id) }?.let { s.category = it.id; s.focusIndex = 0 }
+        }
     }
     LaunchedEffect(channels) {
         val list = shown ?: return@LaunchedEffect
+        s.resumeChannel?.let { id ->
+            s.resumeChannel = null
+            val i = list.indexOfFirst { it.id == id }
+            if (i >= 0) { s.focusIndex = i; s.playing = list[i]; Playback.play(ctx, x.liveUrl(list[i].id)) }
+        }
         if (!s.opened) {
             if (s.category == null) return@LaunchedEffect // on attend le premier bouquet
             s.opened = true
@@ -122,12 +133,16 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
             s.listsOpen = false
         } else {
             s.playing = c
+            s.category?.let { Store.rememberLive(it, c.id) }
             Playback.play(ctx, x.liveUrl(c.id))
         }
     }
 
     // Aura : la chaîne joue en plein écran DERRIÈRE ; catégories et chaînes numérotées par-dessus, semi-transparentes.
     val playingNow = s.playing != null && Playback.current != null
+    var optionsFor by remember { mutableStateOf<Category?>(null) }
+    var moving by remember { mutableStateOf<Category?>(null) }
+    var pinFor by remember { mutableStateOf<String?>(null) }
     val showFocus = remember { FocusRequester() }
     // Retour : cache d'abord les listes (si une chaîne joue), puis quitte l'écran.
     androidx.activity.compose.BackHandler(enabled = s.listsOpen && playingNow) { s.listsOpen = false }
@@ -159,12 +174,14 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
                     itemsIndexed(all, key = { i, c -> c.id + "#" + i }) { i, c ->
                         val selected = s.category == c.id
                         val m = if (i == focusAt) Modifier.focusRequester(catFocus) else Modifier
-                        Tile({ if (s.category != c.id) { s.category = c.id; s.focusIndex = 0; s.filter = ""; s.searching = false } },
+                        val open = { s.category = c.id; s.focusIndex = 0; s.filter = ""; s.searching = false }
+                        Tile({ if (s.category != c.id) { if (Store.isLocked("live", c.id)) pinFor = c.id else open() } },
                             m.fillMaxWidth().height(48.dp), RoundedCornerShape(0.dp),
-                            colors = listOf(if (selected) Color(0x552F6BFF) else Color.Transparent), focusColors = C.live, focusScale = 1f) {
+                            colors = listOf(if (selected) Color(0x552F6BFF) else Color.Transparent), focusColors = C.live, focusScale = 1f,
+                            onLongClick = if (c.id == Screen.ALL || c.id == Screen.FAVORITES) null else ({ optionsFor = c })) {
                             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(String.format(java.util.Locale.ROOT, "%02d", i + 1), color = C.text2, fontFamily = Sora, fontSize = 17.sp, modifier = Modifier.width(38.dp))
-                                Label(if (c.id == Screen.FAVORITES) "★ " + c.name else c.name, 16.sp, C.text, if (selected) FontWeight.Bold else FontWeight.Medium)
+                                Label((if (Store.isLocked("live", c.id)) "🔒 " else "") + (if (c.id == Screen.FAVORITES) "★ " + c.name else c.name), 16.sp, C.text, if (selected) FontWeight.Bold else FontWeight.Medium)
                             }
                         }
                     }
@@ -198,6 +215,28 @@ fun LiveScreen(nav: Navigator, x: Xtream, s: Screen.Live) {
                     ToolButton(Icons.Live) { shown?.let { l -> val i = l.indexOfFirst { it.id == p.id }.coerceAtLeast(0); nav.go(Screen.Play(p.name, x.liveUrl(p.id), live = true, channels = l, index = i)) } }
                 }
             }
+        }
+        optionsFor?.let { c ->
+            ChoiceDialog(Str.catOptions + " · " + c.name, listOf(
+                (if (Store.isLocked("live", c.id)) Str.unlock else Str.lock) to { optionsFor = null; if (Store.isLocked("live", c.id)) pinFor = "unlock:" + c.id else Store.toggleLock("live", c.id) },
+                Str.moveCat to { optionsFor = null; moving = c },
+                Str.cancel to { optionsFor = null },
+            )) { optionsFor = null }
+        }
+        moving?.let { c ->
+            val ids = (categories ?: emptyList()).map { it.id }
+            fun move(d: Int) {
+                val l = ids.toMutableList(); val i = l.indexOf(c.id); val j = i + d
+                if (i >= 0 && j in l.indices) { l.removeAt(i); l.add(j, c.id); Store.setCategoryOrder("live", l) }
+            }
+            ChoiceDialog(Str.moveCat + " · " + c.name, listOf(Str.moveUp to { move(-1) }, Str.moveDown to { move(1) }, "OK" to { moving = null })) { moving = null }
+        }
+        pinFor?.let { id ->
+            PinDialog({
+                pinFor = null
+                if (id.startsWith("unlock:")) Store.toggleLock("live", id.removePrefix("unlock:"))
+                else { s.category = id; s.focusIndex = 0; s.filter = ""; s.searching = false }
+            }) { pinFor = null }
         }
         if (!playingNow && s.playing == null) Box(Modifier.align(Alignment.CenterEnd).padding(end = 120.dp)) { Label(Str.chooseChannel, 16.sp, C.text2) }
         if (Playback.error && s.playing != null) Box(Modifier.align(Alignment.CenterEnd).padding(end = 120.dp)) { Label(Str.playError, 14.sp, C.error, lines = 2) }
