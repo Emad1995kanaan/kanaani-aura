@@ -54,8 +54,6 @@ object Str {
     val lock get() = t("Lock", "قفل", "נעילה")
     val unlock get() = t("Unlock", "فتح القفل", "ביטול נעילה")
     val moveCat get() = t("Move category", "نقل الفئة", "הזזת קטגוריה")
-    val moveUp get() = t("Move up", "نقل لأعلى", "למעלה")
-    val moveDown get() = t("Move down", "نقل لأسفل", "למטה")
     val enterPin get() = t("Enter PIN", "أدخل الرمز السري", "הזן קוד")
     val wrongPin get() = t("Wrong PIN", "الرمز غلط", "קוד שגוי")
     val changePin get() = t("Change parental PIN", "تغيير كلمة المرور", "שינוי קוד הורים")
